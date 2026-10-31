@@ -11,4 +11,10 @@ describe("role assignment", () => {
   it("rejects an unsupported number of players", () => {
     expect(() => assignRoles(["A", "B", "C"])).toThrow();
   });
+  it("supports six players when the optional trickster role is disabled", () => {
+    expect(assignRoles(["A", "B", "C", "D", "E", "F"], false)).toHaveLength(6);
+  });
+  it("rejects seven players when there are not enough roles", () => {
+    expect(() => assignRoles(["A", "B", "C", "D", "E", "F", "G"], false)).toThrow();
+  });
 });
