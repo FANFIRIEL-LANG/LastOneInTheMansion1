@@ -74,12 +74,14 @@ export default function App() {
   }
 
   function receivePhone() {
+    if (transfer.stage !== "handoff") return;
     setTransfer((state) => confirmPhoneReceived(state));
     setScreen("ready");
     speak(`${currentPlayer?.name}, когда будете готовы, получите свою роль.`, speechEnabled);
   }
 
   function revealCurrentRole() {
+    if (transfer.stage !== "ready") return;
     setTransfer((state) => revealRole(state));
     setShowRoleDetails(true);
     setScreen("secret");
