@@ -52,7 +52,6 @@ describe("Mafia game session state machine", () => {
       const target = session.players.find((player) => player.alive && player.id !== actor.id)!;
       session = submitDayAction(session, actor.id, { type: "interrogate", targetId: target.id, question: "Что произошло?" });
     }
-    const cult = session.players.find((player) => MANSION_ROLES[player.roleId].faction === "cult")!;
     const votes = Object.fromEntries(session.players.map((player, index) => [player.id, session.players[(index + 1) % session.players.length].id]));
     session = submitTrialVotes(session, votes);
     expect(session.phase).toBe("night");
@@ -66,7 +65,6 @@ describe("Mafia game session state machine", () => {
       const target = session.players.find((player) => player.alive && player.id !== actor.id)!;
       session = submitDayAction(session, actor.id, { type: "interrogate", targetId: target.id, question: "Что ты видел?" });
     }
-    const cult = session.players.find((player) => MANSION_ROLES[player.roleId].faction === "cult")!;
     const votes = Object.fromEntries(session.players.map((player, index) => [player.id, session.players[(index + 1) % session.players.length].id]));
     session = submitTrialVotes(session, votes);
     const order = [...session.nightTurnOrder];
