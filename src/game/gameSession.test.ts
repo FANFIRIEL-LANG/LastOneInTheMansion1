@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeDayPlayer, activeNightPlayer, getEligibleVoters, startMansionSession, submitDayAction, submitNightAction, submitTrialVotes } from "./gameSession";
+import { activeDayPlayer, activeNightPlayer, completeEventPrivateReveal, getEligibleVoters, startMansionSession, submitDayAction, submitEventVotes, submitNightAction, submitTrialVotes } from "./gameSession";
 import type { EvidenceCard } from "./dayActions";
 import { MANSION_ROLES } from "./mafiaEngine";
 
@@ -8,6 +8,16 @@ const deck: EvidenceCard[] = [
   { id: "r2", title: "Свеча", description: "Чёрная свеча.", room: "chapel", kind: "ritual", isFalseLead: false },
   { id: "t1", title: "Записка", description: "Старая записка.", room: "kitchen", kind: "testimony", isFalseLead: true }
 ];
+
+function finishEvent(session: ReturnType<typeof startMansionSession>) {
+  if (session.phase !== "event" || !session.currentEvent) return session;
+  const choice = session.currentEvent.choices[0].id;
+  const votes = Object.fromEntries(session.players.filter((player) => player.alive).map((player) => [player.id, choice]));
+  const result = submitEventVotes(session, votes);
+  return result.phase === "event-private" && result.eventPrivatePlayerId
+    ? completeEventPrivateReveal(result, result.eventPrivatePlayerId)
+    : result;
+}
 
 describe("Mafia game session state machine", () => {
   it("starts a four-player game in the public day-action phase", () => {
@@ -24,7 +34,11 @@ describe("Mafia game session state machine", () => {
       const target = session.players.find((player) => player.alive && player.id !== actor.id)!;
       session = submitDayAction(session, actor.id, { type: "interrogate", targetId: target.id, question: "Что ты видел?" });
     }
+    expect(session.phase).toBe("event");
+    expect(session.currentEvent).not.toBeNull();
+    session = finishEvent(session);
     expect(session.phase).toBe("trial");
+    expect(session.eventHistory).toHaveLength(1);
     expect(session.dayState.actionsUsed).toHaveLength(4);
     expect(() => submitDayAction(session, "p1", { type: "accuse", targetId: "p2" })).toThrow();
   });
@@ -41,6 +55,7 @@ describe("Mafia game session state machine", () => {
       const target = session.players.find((player) => player.alive && player.id !== actor.id)!;
       session = submitDayAction(session, actor.id, { type: "interrogate", targetId: target.id, question: "Где ты был?" });
     }
+    session = finishEvent(session);
     expect(() => submitTrialVotes(session, { p1: "p2" })).toThrow();
     expect(session.phase).toBe("trial");
   });
@@ -52,6 +67,7 @@ describe("Mafia game session state machine", () => {
       const target = session.players.find((player) => player.alive && player.id !== actor.id)!;
       session = submitDayAction(session, actor.id, { type: "interrogate", targetId: target.id, question: "Что произошло?" });
     }
+    session = finishEvent(session);
     const votes = Object.fromEntries(session.players.map((player, index) => [player.id, session.players[(index + 1) % session.players.length].id]));
     session = submitTrialVotes(session, votes);
     expect(session.phase).toBe("night");
@@ -65,6 +81,7 @@ describe("Mafia game session state machine", () => {
       const target = session.players.find((player) => player.alive && player.id !== actor.id)!;
       session = submitDayAction(session, actor.id, { type: "interrogate", targetId: target.id, question: "Что ты видел?" });
     }
+    session = finishEvent(session);
     const votes = Object.fromEntries(session.players.map((player, index) => [player.id, session.players[(index + 1) % session.players.length].id]));
     session = submitTrialVotes(session, votes);
     const order = [...session.nightTurnOrder];
