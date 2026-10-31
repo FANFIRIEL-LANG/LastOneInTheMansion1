@@ -17,7 +17,7 @@ import { MANSION_ROLES, type MansionPlayer, type NightAction } from "./game/mafi
 import { type MansionEventChoiceId } from "./game/events";
 import type { EvidenceCard, MansionRoom, PublicAction } from "./game/dayActions";
 import { shouldConcealSecretRole } from "./game/privacyLifecycle";
-import { playNarratorClip, stopNarrator, type NarratorClipId } from "./game/narratorAudio";
+import { playNarratorClip, playNarratorSequence, stopNarrator, type NarratorClipId } from "./game/narratorAudio";
 
 type Screen = "home" | "setup" | "roles" | "intro" | "game";
 type PrivateStep = "handoff" | "ready" | "secret";
@@ -145,14 +145,14 @@ export default function App() {
       return;
     }
     setScreen("intro");
-    playNarratorClip("narrator_welcome", speechEnabled);
+    playNarratorSequence(["narrator_welcome", "narrator_house", "narrator_rules_public"], speechEnabled);
   }
 
   function beginDay() {
     setScreen("game");
     setPrivateStep("handoff");
     setPrivateVisible(false);
-    playNarratorClip("narrator_day_start", speechEnabled);
+    playNarratorSequence(["narrator_day_start", "narrator_day_actions"], speechEnabled);
   }
 
   function submitAction(action: PublicAction) {
@@ -169,7 +169,7 @@ export default function App() {
       setTargetId("");
       setEvidenceId("");
       setError("");
-      if (next.phase === "event" && next.currentEvent) playNarratorClip(eventClipId(next.currentEvent.id), speechEnabled);
+      if (next.phase === "event" && next.currentEvent) playNarratorSequence([eventClipId(next.currentEvent.id), "narrator_event_vote"], speechEnabled);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Действие не принято.");
     }
@@ -195,6 +195,7 @@ export default function App() {
       setError("");
       if (next.phase === "trial") playNarratorClip("narrator_trial", speechEnabled);
       else if (next.phase === "ending") playNarratorClip(next.winner === "guests" ? "narrator_guests_win" : "narrator_cult_win", speechEnabled);
+      else if (next.phase === "day-actions") playNarratorSequence(["narrator_dawn", "narrator_day_start", "narrator_day_actions"], speechEnabled);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Голоса события не приняты.");
     }
@@ -218,7 +219,7 @@ export default function App() {
       setTrialVoterIndex(0);
       setPrivateStep("handoff");
       setError("");
-      if (next.phase === "night") playNarratorClip("narrator_night", speechEnabled);
+      if (next.phase === "night") playNarratorSequence(["narrator_night", "narrator_cult_whisper"], speechEnabled);
       else if (next.phase === "ending") playNarratorClip(next.winner === "guests" ? "narrator_guests_win" : "narrator_cult_win", speechEnabled);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Голосование не принято.");
@@ -254,7 +255,7 @@ export default function App() {
       setPrivateVisible(false);
       setPrivateStep("handoff");
       setError("");
-      if (next.phase === "day-actions") playNarratorClip("narrator_day_start", speechEnabled);
+      if (next.phase === "day-actions") playNarratorSequence(["narrator_dawn", "narrator_day_start", "narrator_day_actions"], speechEnabled);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Не удалось закрыть личную подсказку.");
     }
