@@ -56,6 +56,12 @@ describe("public day actions", () => {
     expect(() => resolvePublicAction(players, state, "p4", { type: "study-ritual", evidenceIds: ["c1", "c3"] })).toThrow();
   });
 
+  it("allows the group to publicly protect one player for the coming night", () => {
+    const result = resolvePublicAction(players, createDayState(clues), "p3", { type: "guard-player", targetId: "p4" });
+    expect(result.state.publicGuardedPlayerId).toBe("p4");
+    expect(result.message).toContain("защищён");
+  });
+
   it("records accusations for the trial", () => {
     const result = resolvePublicAction(players, createDayState(clues), "p1", { type: "accuse", targetId: "p2" });
     expect(result.state.nominations).toEqual(["p2"]);
