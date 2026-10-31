@@ -22,7 +22,7 @@ export const NARRATOR_TEXT: Record<NarratorClipId, string> = {
   narrator_welcome: "Добро пожаловать в особняк. Сегодня двери откроются только один раз. Среди вас есть те, кто пришёл сюда не случайно. Слушайте друг друга. И не спешите доверять даже самым убедительным словам.",
   narrator_house: "Ветер захлопывает тяжёлую дверь. Телефоны теряют сеть. Где-то наверху загорается лампа — хотя электричество в этом доме отключили сорок лет назад. Кажется, особняк ждал именно вас.",
   narrator_rules_public: "Днём говорите открыто: спорьте, задавайте вопросы, делитесь уликами и обвиняйте. Ночью телефон будет переходить из рук в руки. Личные действия и результаты увидит только тот, кому они предназначены. Приложение не подслушивает ваши разговоры и не передаёт сообщения между игроками.",
-  narrator_day_start: "Наступает день. Осмотрите особняк, сопоставьте найденное и решите, кому можно верить. У каждого живого гостя будет одно публичное действие.",
+  narrator_day_start: "Наступает день. Осмотрите особняк, сопоставьте найденное и решите, кому можно верить. У каждого живого гостя будет два публичных действия.",
   narrator_day_actions: "Выберите действие и объявите группе, что вы собираетесь сделать. Помните: допрос не заставляет человека говорить правду. А найденная улика сначала принадлежит только тому, кто её обнаружил.",
   narrator_event_blood_moon: "За окнами поднимается кровавая луна. Красный свет медленно ползёт по стенам. В глубине дома что-то отвечает на её появление. Особняк требует продолжения ритуала.",
   narrator_event_basement: "Из запертого подвала доносится три коротких удара. Затем голос произносит ваше имя — хотя никто не называл его вслух. Дверь начинает дрожать.",
@@ -64,6 +64,21 @@ export function playNarratorSequence(ids: NarratorClipId[], enabled: boolean): v
   const playNext = () => {
     if (generation !== narrationGeneration || index >= ids.length) return;
     const id = ids[index++];
+    // The existing day-start recording says "one action", while the current rules grant two.
+    // Speak the corrected line with the built-in Russian voice; all other supplied recordings stay intact.
+    if (id === "narrator_day_start") {
+      if ("speechSynthesis" in window) {
+        const utterance = new SpeechSynthesisUtterance(NARRATOR_TEXT[id]);
+        utterance.lang = "ru-RU";
+        utterance.rate = 0.92;
+        utterance.pitch = 0.86;
+        utterance.onend = playNext;
+        window.speechSynthesis.speak(utterance);
+      } else {
+        playNext();
+      }
+      return;
+    }
     const audio = new Audio(`/audio/narrator/${id}.mp3`);
     activeAudio = audio;
     audio.preload = "auto";
