@@ -237,6 +237,11 @@ export default function App() {
       setNightTargetId("");
       setError("");
       if (next.phase === "ending") playNarratorClip(next.winner === "guests" ? "narrator_guests_win" : "narrator_cult_win", speechEnabled);
+      else if (next.phase === "night-results" || next.phase === "day-actions") {
+        const dawnClip: NarratorClipId = !next.lastNight?.attackedPlayerId ? "narrator_no_attack" : next.lastNight.attackBlocked ? "narrator_attack_blocked" : "narrator_dawn";
+        if (next.phase === "day-actions") playNarratorSequence([dawnClip, "narrator_day_start", "narrator_day_actions"], speechEnabled);
+        else playNarratorClip(dawnClip, speechEnabled);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Ночное действие не принято.");
     }
@@ -255,7 +260,7 @@ export default function App() {
       setPrivateVisible(false);
       setPrivateStep("handoff");
       setError("");
-      if (next.phase === "day-actions") playNarratorSequence(["narrator_dawn", "narrator_day_start", "narrator_day_actions"], speechEnabled);
+      if (next.phase === "day-actions") playNarratorSequence(["narrator_day_start", "narrator_day_actions"], speechEnabled);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Не удалось закрыть личную подсказку.");
     }
