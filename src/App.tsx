@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, AudioLines, Check, ChevronRight, DoorOpen, Eye, EyeOff, Ghost, Moon, Shield, Skull, Sparkles, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, AudioLines, Check, ChevronRight, DoorOpen, Eye, Ghost, Moon, Shield, Skull, Sparkles, Volume2, VolumeX } from "lucide-react";
 import {
   activeDayPlayer,
   activeNightPlayer,
@@ -14,7 +14,7 @@ import {
   type MansionSession
 } from "./game/gameSession";
 import { MANSION_ROLES, type MansionPlayer, type NightAction } from "./game/mafiaEngine";
-import { MANSION_EVENT_DECK, type MansionEventChoiceId } from "./game/events";
+import { type MansionEventChoiceId } from "./game/events";
 import type { EvidenceCard, MansionRoom, PublicAction } from "./game/dayActions";
 import { shouldConcealSecretRole } from "./game/privacyLifecycle";
 
@@ -84,14 +84,10 @@ export default function App() {
   const nightActor = session ? activeNightPlayer(session) : null;
   const resultActor = session ? activeNightResultPlayer(session) : null;
   const event = session?.currentEvent ?? null;
-  const currentEventChoice = event?.choices[0];
   const privateCultMates = currentRolePlayer ? players.filter((player) => player.id !== currentRolePlayer.id && (player.roleId === "cultist" || player.roleId === "acolyte")) : [];
   const roleColor = currentRolePlayer && MANSION_ROLES[currentRolePlayer.roleId].faction === "cult" ? "danger" : "warm";
 
-  const voteCounts = useMemo(() => Object.values(trialVotes).reduce<Record<string, number>>((counts, id) => {
-    counts[id] = (counts[id] ?? 0) + 1;
-    return counts;
-  }, {}), [trialVotes]);
+
 
   useEffect(() => {
     const conceal = (eventName: "visibilitychange" | "blur" | "pagehide") => {
@@ -167,6 +163,7 @@ export default function App() {
       const next = submitDayAction(session, dayActor.id, action);
       setSession(next);
       setPrivateStep("handoff");
+      setPrivateVisible(false);
       setTargetId("");
       setEvidenceId("");
       setError("");
@@ -184,6 +181,7 @@ export default function App() {
     if (eventVoterIndex + 1 < eventVoters.length) {
       setEventVoterIndex((index) => index + 1);
       setPrivateStep("handoff");
+      setPrivateVisible(false);
       return;
     }
     try {
@@ -207,6 +205,7 @@ export default function App() {
     if (trialVoterIndex + 1 < trialVoters.length) {
       setTrialVoterIndex((index) => index + 1);
       setPrivateStep("handoff");
+      setPrivateVisible(false);
       return;
     }
     try {
@@ -229,6 +228,7 @@ export default function App() {
       const next = submitNightAction(session, action);
       setSession(next);
       setPrivateStep("handoff");
+      setPrivateVisible(false);
       setNightTargetId("");
       setError("");
       if (next.phase === "ending") speak("Рассвет принёс окончательный ответ. Игра завершена.", speechEnabled);
@@ -382,7 +382,7 @@ export default function App() {
       </>}
 
       {session.phase === "event" && event && <>
-        {privateStep === "handoff" ? renderHandoff(eventVoters[eventVoterIndex], `ОБЩЕЕ РЕШЕНИЕ · ГОЛОС ${eventVoterIndex + 1}/${eventVoters.length}`, () => setPrivateStep("ready")) : <section className="panel narrative screen-enter">
+        {privateStep === "handoff" ? renderHandoff(eventVoters[eventVoterIndex], `ОБЩЕЕ РЕШЕНИЕ · ГОЛОС ${eventVoterIndex + 1}/${eventVoters.length}`, () => { setPrivateStep("ready"); setPrivateVisible(true); }) : !privateVisible ? renderPrivateReady(eventVoters[eventVoterIndex], "ТАЙНЫЙ ВЫБОР СОБЫТИЯ", () => setPrivateVisible(true)) : <section className="panel narrative screen-enter">
           <div className="section-mark"><Sparkles size={23}/></div><p className="eyebrow">СОБЫТИЕ ОСОБНЯКА · {eventVoters[eventVoterIndex]?.name}</p><h2>{event.title}</h2><p className="round-prompt">{event.description}</p>
           {event.choices.map((choice) => <button className="choice" key={choice.id} onClick={() => castEventVote(choice.id)}><span>›</span>{choice.label}</button>)}
           <p className="microcopy">Голос тайный. Решение требует строгого большинства; иначе сработает исход по умолчанию.</p>
@@ -390,7 +390,7 @@ export default function App() {
       </>}
 
       {session.phase === "trial" && <>
-        {privateStep === "handoff" ? renderHandoff(trialVoters[trialVoterIndex], `ТАЙНОЕ ГОЛОСОВАНИЕ · ${trialVoterIndex + 1}/${trialVoters.length}`, () => setPrivateStep("ready")) : <section className="panel narrative screen-enter">
+        {privateStep === "handoff" ? renderHandoff(trialVoters[trialVoterIndex], `ТАЙНОЕ ГОЛОСОВАНИЕ · ${trialVoterIndex + 1}/${trialVoters.length}`, () => { setPrivateStep("ready"); setPrivateVisible(true); }) : !privateVisible ? renderPrivateReady(trialVoters[trialVoterIndex], "ТАЙНЫЙ ГОЛОС", () => setPrivateVisible(true)) : <section className="panel narrative screen-enter">
           <div className="section-mark"><EyeOff size={23}/></div><p className="eyebrow">ЛИЧНЫЙ ГОЛОС · {trialVoters[trialVoterIndex]?.name}</p><h2>Кого<br/><em>изгнать?</em></h2>
           <p className="muted">Выбор видит только голосующий. Призрак может отдать свой последний голос.</p>
           {living.filter((p) => p.id !== trialVoters[trialVoterIndex]?.id).map((candidate) => <button className="choice" key={candidate.id} onClick={() => castTrialVote(candidate.id)}><span>›</span>{candidate.name}</button>)}
@@ -399,7 +399,7 @@ export default function App() {
       </>}
 
       {session.phase === "night" && nightActor && <>
-        {privateStep === "handoff" ? renderHandoff(nightActor, `НОЧНОЙ ХОД · ${session.nightActionIndex + 1}/${session.nightTurnOrder.length}`, () => setPrivateStep("ready")) : <section className={`secret-card screen-enter ${MANSION_ROLES[nightActor.roleId].faction === "cult" ? "danger" : "warm"}`}>
+        {privateStep === "handoff" ? renderHandoff(nightActor, `НОЧНОЙ ХОД · ${session.nightActionIndex + 1}/${session.nightTurnOrder.length}`, () => { setPrivateStep("ready"); setPrivateVisible(false); }) : !privateVisible ? renderPrivateReady(nightActor, "ЛИЧНОЕ НОЧНОЕ ДЕЙСТВИЕ", () => setPrivateVisible(true)) : <section className={`secret-card screen-enter ${MANSION_ROLES[nightActor.roleId].faction === "cult" ? "danger" : "warm"}`}>
           <div className="secret-top"><span className="eyebrow">НОЧЬ · ЛИЧНОЕ ДЕЙСТВИЕ</span><span className="classified">SECRET</span></div>
           <p className="eyebrow">{nightActor.name.toUpperCase()}</p><h2>{MANSION_ROLES[nightActor.roleId].name}</h2>
           {nightActor.alive && nightActor.roleId === "resident" && <><p className="role-description">Сегодня у тебя нет ночной способности. Передай телефон дальше.</p><button className="primary-button full" onClick={() => makeNightMove("pass")}>Продолжить ночь</button></>}
