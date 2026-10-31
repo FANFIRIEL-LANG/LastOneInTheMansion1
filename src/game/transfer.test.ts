@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { confirmPhoneReceived, hideAndPass, revealRole, startRoleFlow } from "./transfer";
+import { confirmPhoneReceived, concealRole, hideAndPass, revealRole, startRoleFlow } from "./transfer";
 
 describe("secret role handoff", () => {
   it("does not reveal a role before the recipient confirms they have the phone", () => {
@@ -7,12 +7,16 @@ describe("secret role handoff", () => {
     expect(state.stage).toBe("handoff");
     expect(revealRole(state).stage).toBe("handoff");
   });
-  it("requires an explicit receive-phone action before reveal", () => {
+  it("requires explicit receive-phone and reveal actions", () => {
     const ready = confirmPhoneReceived(startRoleFlow());
     expect(ready.stage).toBe("ready");
     expect(revealRole(ready).stage).toBe("secret");
   });
-  it("hides the role and moves to next player after acknowledgement", () => {
+  it("hides a secret on app background without skipping the current player", () => {
+    const secret = revealRole(confirmPhoneReceived(startRoleFlow()));
+    expect(concealRole(secret)).toEqual({ stage: "ready", playerIndex: 0 });
+  });
+  it("moves to the next player only after acknowledgement", () => {
     const secret = revealRole(confirmPhoneReceived(startRoleFlow()));
     const next = hideAndPass(secret, 5);
     expect(next.stage).toBe("handoff");
