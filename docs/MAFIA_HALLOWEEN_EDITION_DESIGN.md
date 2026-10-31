@@ -116,7 +116,7 @@ Public:
 Private:
 - role, faction, objective, cult allies;
 - night target selection;
-- investigative results and medium omens;
+- investigative results and unshared private clues;
 - unshared clues and hidden inventory;
 - private event offers and secret missions.
 
@@ -178,7 +178,7 @@ References checked on 2026-10-31:
 - No private role, faction, objective, ally, target, or result is spoken aloud.
 - Every player receives an indistinguishable private night turn.
 - Every living player has one meaningful public day action.
-- All active roles have a meaningful private night action.
+- Special roles have distinct private night actions; ordinary Residents receive a neutral no-power handoff.
 - Cult target resolution, protection, wounds, ghost state, vote, ritual track, and win checks are covered by unit tests.
 - Players who become ghosts can still participate and cast their one final vote.
 - Public events and player choices affect the state and the ending.
