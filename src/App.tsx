@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, AudioLines, Check, ChevronRight, DoorOpen, Eye, Ghost, Moon, Shield, Skull, Sparkles, Volume2, VolumeX } from "lucide-react";
 import {
   activeDayPlayer,
