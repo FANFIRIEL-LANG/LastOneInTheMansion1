@@ -79,7 +79,7 @@ export function createMansionPlayers(names: string[]): MansionPlayer[] {
 }
 
 /** Preview shown only to the current player before the phone is passed on. Never send this text to narration. */
-export function previewPrivateNightAction(players: MansionPlayer[], action: NightAction, ritualProgress: number): string {
+export function previewPrivateNightAction(players: MansionPlayer[], action: NightAction, _ritualProgress: number): string {
   const actor = players.find((player) => player.id === action.actorId);
   if (!actor) throw new Error("Неизвестный игрок.");
   if (!actor.alive) return "Ты остаёшься в тени. Передай телефон дальше.";
