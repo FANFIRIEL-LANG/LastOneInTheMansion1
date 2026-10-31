@@ -401,7 +401,7 @@ export default function App() {
         </section>}
       </>}
       {session.phase === "day-actions" && dayActor && !pendingClue && <>
-        {privateStep === "handoff" ? renderHandoff(dayActor, `ПУБЛИЧНЫЙ ХОД · ${session.dayState.actionsUsed.length + 1}/${living.length}`, () => setPrivateStep("ready")) : <section className="panel narrative screen-enter">
+        {privateStep === "handoff" ? renderHandoff(dayActor, `ПУБЛИЧНЫЙ ХОД · ${session.dayState.actionsUsed.length + 1}/${living.length * 2}`, () => setPrivateStep("ready")) : <section className="panel narrative screen-enter">
           <p className="eyebrow">ХОД ИГРОКА</p><h2>{dayActor.name}</h2>
           <p className="muted">У тебя два действия за день. Можно искать улики, допрашивать, защищать и выдвигать подозреваемых. После каждого хода телефон передаётся дальше.</p>
           <div className="choice-list">{dayActionButtons.map((item) => <button className={`choice ${dayActionType === item.id ? "choice-selected" : ""}`} key={item.id} onClick={() => setDayActionType(item.id)}><span>›</span>{item.label}</button>)}</div>
