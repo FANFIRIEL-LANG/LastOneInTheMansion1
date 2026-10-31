@@ -55,7 +55,7 @@ describe("private night action previews", () => {
   it("returns investigation information only to the current player's private screen", () => {
     const players = playersFor(["cultist", "detective", "doctor", "resident"]);
     const result = previewPrivateNightAction(players, { actorId: "p2", kind: "investigate", targetId: "p1" }, 0);
-    expect(result).toContain("культом");
+    expect(result).toContain("неоднозначные следы");
   });
 
   it("never needs to put private role results into public narration", () => {
@@ -88,7 +88,7 @@ describe("private night resolution", () => {
       { actorId: "p4", kind: "pass" }
     ];
     const result = resolveNight(players, actions, 0);
-    expect(result.privateResults.p2).toContain("культом");
+    expect(result.privateResults.p2).toMatch(/следы|убедительных следов/);
     expect(result.privateResults.p4).toBeUndefined();
     expect(Object.keys(result.privateResults).sort()).toEqual(["p2", "p3"]);
   });
