@@ -27,6 +27,7 @@ export interface DayState {
   publicEvidence: EvidenceCard[];
   interrogations: Interrogation[];
   nominations: string[];
+  publicGuardedPlayerId: string | null;
   publicLog: string[];
 }
 
@@ -35,6 +36,7 @@ export type PublicAction =
   | { type: "interrogate"; targetId: string; question: string }
   | { type: "share-evidence"; evidenceId: string }
   | { type: "study-ritual"; evidenceIds: [string, string] }
+  | { type: "guard-player"; targetId: string }
   | { type: "accuse"; targetId: string };
 
 export interface DayActionResult {
@@ -53,6 +55,7 @@ export function createDayState(clueDeck: EvidenceCard[], ritualProgress = 0, day
     publicEvidence: [],
     interrogations: [],
     nominations: [],
+    publicGuardedPlayerId: null,
     publicLog: []
   };
 }
@@ -76,6 +79,7 @@ export function resolvePublicAction(
     publicEvidence: [...state.publicEvidence],
     interrogations: [...state.interrogations],
     nominations: [...state.nominations],
+    publicGuardedPlayerId: state.publicGuardedPlayerId,
     publicLog: [...state.publicLog]
   };
 
@@ -126,7 +130,13 @@ export function resolvePublicAction(
   }
 
   const target = players.find((player) => player.id === action.targetId && player.alive);
-  if (!target || target.id === actorId) throw new Error("Можно обвинить другого живого игрока.");
+  if (!target || target.id === actorId) throw new Error("Можно выбрать только другого живого игрока.");
+  if (action.type === "guard-player") {
+    if (next.publicGuardedPlayerId) throw new Error("Сегодня группа уже выбрала публичную защиту.");
+    next.publicGuardedPlayerId = target.id;
+    next.publicLog.push(`${actor.name} публично защищает игрока ${target.name} этой ночью.`);
+    return { state: next, message: `${target.name} будет защищён от одного ночного нападения.` };
+  }
   if (next.nominations.includes(target.id)) throw new Error("Этот игрок уже выдвинут на суд сегодня.");
   next.nominations.push(target.id);
   next.publicLog.push(`${actor.name} выдвинул(а) ${target.name} на суд.`);
