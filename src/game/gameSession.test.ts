@@ -43,6 +43,18 @@ describe("Mafia game session state machine", () => {
     expect(() => submitDayAction(session, "p1", { type: "accuse", targetId: "p2" })).toThrow();
   });
 
+  it("applies first aid to a wounded player through the session", () => {
+    let session = startMansionSession(["A", "B", "C", "D"], deck);
+    const actor = activeDayPlayer(session)!;
+    const patient = session.players.find((player) => player.id !== actor.id)!;
+    session = {
+      ...session,
+      players: session.players.map((player) => player.id === patient.id ? { ...player, wounds: 1 } : player)
+    };
+    session = submitDayAction(session, actor.id, { type: "treat-player", targetId: patient.id });
+    expect(session.players.find((player) => player.id === patient.id)?.wounds).toBe(0);
+  });
+
   it("rejects a public action submitted out of turn", () => {
     const session = startMansionSession(["A", "B", "C", "D"], deck);
     expect(() => submitDayAction(session, "p4", { type: "search-room", room: "library" })).toThrow();
