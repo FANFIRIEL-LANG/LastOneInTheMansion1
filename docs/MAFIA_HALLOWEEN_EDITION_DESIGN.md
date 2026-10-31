@@ -27,23 +27,24 @@ A storm traps the guests in a Victorian mansion. A secret cult is preparing a ri
 
 ## Role roster and player-count balance
 
-| Players | Cult | Guests |
-|---:|---|---|
-| 4 | Cultist | Detective, Doctor, Resident |
-| 5 | Cultist | Detective, Doctor, Medium, Resident |
-| 6 | Cultist, Acolyte | Detective, Doctor, Medium, Guardian |
-| 7 | Cultist, Acolyte | Detective, Doctor, Medium, Guardian, Resident |
+| Players | Cult | Special guest roles | Ordinary residents |
+|---:|---|---|---:|
+| 4 | 1 Cultist | Detective | 2 |
+| 5 | 1 Cultist | Detective, Doctor | 2 |
+| 6 | Cultist, Acolyte | Detective, Doctor | 2 |
+| 7 | Cultist, Acolyte | Detective, Doctor, Guardian | 2 |
+
+The five-player setup is the primary balance target: one hidden cultist against four guests, with only two special guest roles. The Medium is removed from the base game because repeated private supernatural clues give one player too much reliable information and narrow the deduction too quickly.
 
 Role abilities:
-- **Cultist:** participates in the secret cult target choice; may bluff as a guest.
-- **Acolyte:** joins the cult target choice and can once per game plant misleading evidence.
-- **Detective:** privately investigates one player and receives only a faction-level clue.
-- **Doctor:** privately protects one player from one fear/wound that night; cannot protect the same target on consecutive nights.
-- **Medium:** privately receives one atmospheric clue about a ghost or a night event; clues are intentionally incomplete.
-- **Guardian:** privately protects one room or one player according to the chosen balance configuration.
-- **Resident:** privately listens to the house and receives an incomplete clue about ritual activity; also receives a personal secret objective.
+- **Cultist:** secretly chooses a night target; must bluff and manipulate the public discussion.
+- **Acolyte:** joins the cult target choice. Its optional once-per-game false-evidence power is disabled in the first balance pass until playtests show it is needed.
+- **Detective:** investigates one player at night but receives an uncertain clue, not a definitive faction label. Suggested results: “suspicious traces” / “no clear traces”; neither result is proof.
+- **Doctor:** protects one player from one night attack. The Doctor cannot protect the same target on consecutive nights and cannot know the cult's choice.
+- **Guardian:** appears only with seven players; provides one limited room/player protection choice.
+- **Resident:** has no special night power. They still receive the same neutral private phone handoff, then pass the phone on. Their influence comes from public actions, discussion, evidence, and voting.
 
-The initial role roster is a balancing proposal. Do not hard-code role assumptions into UI components; use role metadata and a role registry.
+Do not add another special role to the five-player setup until several full playtests show that the game needs it. Use role metadata and a role registry rather than hard-coding role assumptions into UI components.
 
 ## Core round structure
 
@@ -89,11 +90,11 @@ The app should show the active player and their available actions, then show the
 - The phone is passed in the same player order every night.
 - Every player gets the same neutral handoff and confirmation pattern.
 - Active roles select a target or action privately.
-- Every living role has a meaningful private action. Ghosts still receive the same neutral pass screen, so no one can infer role from who gets a turn.
+- Every living player receives a private phone turn, but ordinary Residents have no night power and simply see a neutral pass screen. Ghosts also receive the same neutral pass screen, so the handoff order does not reveal roles.
 - Cult members privately choose a single target. If cult choices tie, the cult attack fails.
 - Doctor/Guardian protection is resolved before the attack.
 - Detective gets a private faction clue.
-- Medium gets a private incomplete omen.
+- No Medium role or Medium-only omen exists in the base game.
 - Narrator may say only "The mansion falls silent" / "Dawn approaches"; no role names are spoken.
 
 ### 6. Resolution
