@@ -3,7 +3,7 @@ import { ArrowLeft, AudioLines, Check, ChevronRight, DoorOpen, Eye, EyeOff, Ghos
 import { assignRoles } from "./game/roles";
 import { INTRO, ROUNDS } from "./game/story";
 import type { Player } from "./game/types";
-import { confirmPhoneReceived, hideAndPass, revealRole, startRoleFlow, type TransferState } from "./game/transfer";
+import { concealRole, confirmPhoneReceived, hideAndPass, revealRole, startRoleFlow, type TransferState } from "./game/transfer";
 
 type Screen = "home" | "setup" | "handoff" | "ready" | "secret" | "intro" | "round" | "vote" | "ending";
 const STORAGE_KEY = "last-one-mansion-v1";
@@ -41,8 +41,8 @@ export default function App() {
     const hideOnBackground = () => {
       if (document.visibilityState !== "visible" && screen === "secret") {
         setShowRoleDetails(false);
-        setScreen("handoff");
-        setTransfer((state) => hideAndPass(state, players.length));
+        setScreen("ready");
+        setTransfer((state) => concealRole(state));
       }
     };
     document.addEventListener("visibilitychange", hideOnBackground);
