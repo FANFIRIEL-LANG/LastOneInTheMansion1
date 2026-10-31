@@ -33,6 +33,11 @@ describe("Mafia Halloween role balance", () => {
     }
   );
 
+  it("uses a simple balanced roster at five players and excludes the medium", () => {
+    expect(roleSetForPlayerCount(5).sort()).toEqual(["cultist", "detective", "doctor", "resident", "resident"].sort());
+    expect(roleSetForPlayerCount(5)).not.toContain("medium");
+  });
+
   it("deals unique roles and normalizes blank player names", () => {
     const players = createMansionPlayers(["Аня", "", "Вася", "Дима"]);
     expect(players).toHaveLength(4);
@@ -55,8 +60,8 @@ describe("private night action previews", () => {
 
   it("never needs to put private role results into public narration", () => {
     const players = playersFor(["cultist", "detective", "doctor", "resident"]);
-    const result = previewPrivateNightAction(players, { actorId: "p4", kind: "listen" }, 1);
-    expect(result.toLowerCase()).toContain("ритуал уже начался");
+    const result = previewPrivateNightAction(players, { actorId: "p4", kind: "pass" }, 1);
+    expect(result).toContain("без особого действия");
     expect(result).not.toContain("Культист");
   });
 });
@@ -68,7 +73,7 @@ describe("private night resolution", () => {
       { actorId: "p1", kind: "cult-select", targetId: "p4" },
       { actorId: "p2", kind: "investigate", targetId: "p1" },
       { actorId: "p3", kind: "protect", targetId: "p4" },
-      { actorId: "p4", kind: "listen" }
+      { actorId: "p4", kind: "pass" }
     ];
     expect(resolveNight(players, actions, 0).attackBlocked).toBe(true);
     expect(resolveNight(players, actions, 0).ritualProgress).toBe(0);
@@ -84,8 +89,8 @@ describe("private night resolution", () => {
     ];
     const result = resolveNight(players, actions, 0);
     expect(result.privateResults.p2).toContain("культом");
-    expect(result.privateResults.p4).toContain("Особняк затих");
-    expect(Object.keys(result.privateResults).sort()).toEqual(["p2", "p3", "p4"]);
+    expect(result.privateResults.p4).toBeUndefined();
+    expect(Object.keys(result.privateResults).sort()).toEqual(["p2", "p3"]);
   });
 
   it("adds a wound and ritual progress when an unprotected target is attacked", () => {
