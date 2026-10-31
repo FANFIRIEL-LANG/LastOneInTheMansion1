@@ -60,7 +60,9 @@ export function createDayState(clueDeck: EvidenceCard[], ritualProgress = 0, day
   };
 }
 
-/** Each living player gets exactly one public action per day. */
+export const ACTIONS_PER_PLAYER_PER_DAY = 2;
+
+/** Each living player gets two different opportunities to influence the day. */
 export function resolvePublicAction(
   players: MansionPlayer[],
   state: DayState,
@@ -69,7 +71,7 @@ export function resolvePublicAction(
 ): DayActionResult {
   const actor = players.find((player) => player.id === actorId && player.alive);
   if (!actor) throw new Error("Публичное действие может выполнить только живой игрок.");
-  if (state.actionsUsed.includes(actorId)) throw new Error("Игрок уже использовал публичное действие сегодня.");
+  if (state.actionsUsed.filter((id) => id === actorId).length >= ACTIONS_PER_PLAYER_PER_DAY) throw new Error("Ты уже использовал оба дневных действия.");
 
   const next: DayState = {
     ...state,
