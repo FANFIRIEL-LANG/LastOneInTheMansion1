@@ -46,29 +46,30 @@ describe("Mafia Halloween role balance", () => {
 });
 
 describe("private night resolution", () => {
-  it("requires a private turn for every living player, including residents", () => {
+  it("requires a meaningful private turn for every living player, including residents", () => {
     const players = playersFor(["cultist", "detective", "doctor", "resident"]);
     const actions: NightAction[] = [
       { actorId: "p1", kind: "cult-select", targetId: "p4" },
       { actorId: "p2", kind: "investigate", targetId: "p1" },
       { actorId: "p3", kind: "protect", targetId: "p4" },
-      { actorId: "p4", kind: "pass" }
+      { actorId: "p4", kind: "listen" }
     ];
     expect(resolveNight(players, actions, 0).attackBlocked).toBe(true);
     expect(resolveNight(players, actions, 0).ritualProgress).toBe(0);
   });
 
-  it("never lets the narrator reveal an investigation result; results are private to the investigator", () => {
+  it("keeps investigation and listening results private to the acting player", () => {
     const players = playersFor(["cultist", "detective", "doctor", "resident"]);
     const actions: NightAction[] = [
       { actorId: "p1", kind: "cult-select", targetId: "p4" },
       { actorId: "p2", kind: "investigate", targetId: "p1" },
       { actorId: "p3", kind: "protect", targetId: "p3" },
-      { actorId: "p4", kind: "pass" }
+      { actorId: "p4", kind: "listen" }
     ];
     const result = resolveNight(players, actions, 0);
     expect(result.privateResults.p2).toContain("культом");
-    expect(Object.keys(result.privateResults)).toEqual(["p2", "p3"]);
+    expect(result.privateResults.p4).toContain("Особняк затих");
+    expect(Object.keys(result.privateResults)).toEqual(["p2", "p3", "p4"]);
   });
 
   it("adds a wound and ritual progress when an unprotected target is attacked", () => {
@@ -77,7 +78,7 @@ describe("private night resolution", () => {
       { actorId: "p1", kind: "cult-select", targetId: "p4" },
       { actorId: "p2", kind: "investigate", targetId: "p1" },
       { actorId: "p3", kind: "protect", targetId: "p3" },
-      { actorId: "p4", kind: "pass" }
+      { actorId: "p4", kind: "listen" }
     ];
     const result = resolveNight(players, actions, 1);
     expect(result.players.find((player) => player.id === "p4")?.wounds).toBe(1);
@@ -91,7 +92,7 @@ describe("private night resolution", () => {
       { actorId: "p1", kind: "cult-select", targetId: "p4" },
       { actorId: "p2", kind: "investigate", targetId: "p1" },
       { actorId: "p3", kind: "protect", targetId: "p3" },
-      { actorId: "p4", kind: "pass" }
+      { actorId: "p4", kind: "listen" }
     ];
     const result = resolveNight(players, actions, 0, "p4");
     expect(result.attackBlocked).toBe(true);
@@ -105,7 +106,7 @@ describe("private night resolution", () => {
       { actorId: "p1", kind: "cult-select", targetId: "p4" },
       { actorId: "p2", kind: "investigate", targetId: "p1" },
       { actorId: "p3", kind: "protect", targetId: "p3" },
-      { actorId: "p4", kind: "pass" }
+      { actorId: "p4", kind: "listen" }
     ];
     const result = resolveNight(players, actions, 0);
     expect(result.players[3].alive).toBe(false);
@@ -133,7 +134,7 @@ describe("private night resolution", () => {
       { actorId: "p1", kind: "cult-select", targetId: "p4" },
       { actorId: "p2", kind: "protect", targetId: "p1" },
       { actorId: "p3", kind: "protect", targetId: "p4" },
-      { actorId: "p4", kind: "pass" }
+      { actorId: "p4", kind: "listen" }
     ];
     expect(() => resolveNight(players, actions, 0)).toThrow();
   });
