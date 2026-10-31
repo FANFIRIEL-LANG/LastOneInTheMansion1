@@ -13,12 +13,8 @@ export const ROLE_CATALOG: Record<RoleId, Role> = {
 export function assignRoles(names: string[], includeTrickster = true): Role[] {
   if (names.length < 4 || names.length > 7) throw new Error("В игре должно быть от 4 до 7 игроков.");
   const roles: Role[] = [ROLE_CATALOG.possessed, ROLE_CATALOG.medium, ROLE_CATALOG.skeptic, ROLE_CATALOG.guardian];
-  const optional: RoleId[] = ["detective", "survivor", "trickster"];
-  while (roles.length < names.length) {
-    const next = optional.shift()!;
-    if (next === "trickster" && !includeTrickster) continue;
-    roles.push(ROLE_CATALOG[next]);
-  }
+  const optional: RoleId[] = ["detective", "survivor", ...(includeTrickster ? ["trickster" as const] : [])];
+  roles.push(...optional.slice(0, names.length - roles.length).map((id) => ROLE_CATALOG[id]));
   return secureShuffle(roles);
 }
 
