@@ -95,7 +95,8 @@ export function resolveNight(players: MansionPlayer[], actions: NightAction[], r
     }
     if (action.kind !== "pass" && action.kind !== "commune") {
       const target = living.find((player) => player.id === action.targetId);
-      if (!target || target.id === actor.id) throw new Error("Нужно выбрать другого живого игрока.");
+      const mayTargetSelf = action.kind === "protect" || action.kind === "ward";
+      if (!target || (target.id === actor.id && !mayTargetSelf)) throw new Error("Нужно выбрать другого живого игрока.");
       if (action.kind === "cult-select" && MANSION_ROLES[target.roleId].faction === "cult") {
         throw new Error("Культ не может выбрать своей целью участника культа.");
       }
