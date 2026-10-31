@@ -38,10 +38,10 @@ describe("Mafia Halloween role balance", () => {
     expect(roleSetForPlayerCount(5)).not.toContain("medium");
   });
 
-  it("deals unique roles and normalizes blank player names", () => {
+  it("deals the configured roles and normalizes blank player names", () => {
     const players = createMansionPlayers(["Аня", "", "Вася", "Дима"]);
     expect(players).toHaveLength(4);
-    expect(new Set(players.map((player) => player.roleId)).size).toBe(4);
+    expect(players.filter((player) => player.roleId === "resident")).toHaveLength(2);
     expect(players[1].name).toBe("Игрок 2");
   });
 
@@ -79,13 +79,13 @@ describe("private night resolution", () => {
     expect(resolveNight(players, actions, 0).ritualProgress).toBe(0);
   });
 
-  it("keeps investigation and listening results private to the acting player", () => {
+  it("keeps investigation results private to the acting player", () => {
     const players = playersFor(["cultist", "detective", "doctor", "resident"]);
     const actions: NightAction[] = [
       { actorId: "p1", kind: "cult-select", targetId: "p4" },
       { actorId: "p2", kind: "investigate", targetId: "p1" },
       { actorId: "p3", kind: "protect", targetId: "p3" },
-      { actorId: "p4", kind: "listen" }
+      { actorId: "p4", kind: "pass" }
     ];
     const result = resolveNight(players, actions, 0);
     expect(result.privateResults.p2).toContain("культом");
@@ -135,14 +135,14 @@ describe("private night resolution", () => {
   });
 
   it("fails a tied cult target choice", () => {
-    const players = playersFor(["cultist", "acolyte", "detective", "doctor", "medium", "guardian"]);
+    const players = playersFor(["cultist", "acolyte", "detective", "doctor", "resident", "resident"]);
     const actions: NightAction[] = [
       { actorId: "p1", kind: "cult-select", targetId: "p3" },
       { actorId: "p2", kind: "cult-select", targetId: "p4" },
       { actorId: "p3", kind: "investigate", targetId: "p1" },
       { actorId: "p4", kind: "protect", targetId: "p5" },
-      { actorId: "p5", kind: "commune" },
-      { actorId: "p6", kind: "ward", targetId: "p3" }
+      { actorId: "p5", kind: "pass" },
+      { actorId: "p6", kind: "pass" }
     ];
     const result = resolveNight(players, actions, 0);
     expect(result.attackedPlayerId).toBeNull();
