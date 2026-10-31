@@ -28,6 +28,7 @@ export interface DayState {
   interrogations: Interrogation[];
   nominations: string[];
   publicGuardedPlayerId: string | null;
+  publicTreatedPlayerId: string | null;
   publicLog: string[];
 }
 
@@ -37,12 +38,14 @@ export type PublicAction =
   | { type: "share-evidence"; evidenceId: string }
   | { type: "study-ritual"; evidenceIds: [string, string] }
   | { type: "guard-player"; targetId: string }
+  | { type: "treat-player"; targetId: string }
   | { type: "accuse"; targetId: string };
 
 export interface DayActionResult {
   state: DayState;
   message: string;
   foundEvidence?: EvidenceCard;
+  healedPlayerId?: string;
 }
 
 export function createDayState(clueDeck: EvidenceCard[], ritualProgress = 0, day = 1): DayState {
@@ -56,6 +59,7 @@ export function createDayState(clueDeck: EvidenceCard[], ritualProgress = 0, day
     interrogations: [],
     nominations: [],
     publicGuardedPlayerId: null,
+    publicTreatedPlayerId: null,
     publicLog: []
   };
 }
@@ -82,6 +86,7 @@ export function resolvePublicAction(
     interrogations: [...state.interrogations],
     nominations: [...state.nominations],
     publicGuardedPlayerId: state.publicGuardedPlayerId,
+    publicTreatedPlayerId: state.publicTreatedPlayerId,
     publicLog: [...state.publicLog]
   };
 
@@ -96,7 +101,16 @@ export function resolvePublicAction(
   }
 
   if (action.type === "interrogate") {
-    const target = players.find((player) => player.id === action.targetId && player.alive);
+    if (action.type === "treat-player") {
+    if (next.publicTreatedPlayerId) throw new Error("Сегодня первая помощь уже оказана.");
+    const patient = players.find((player) => player.id === action.targetId && player.alive && player.wounds > 0);
+    if (!patient) throw new Error("Помочь можно только живому раненому игроку.");
+    next.publicTreatedPlayerId = patient.id;
+    next.publicLog.push(`${actor.name} оказал(а) первую помощь игроку ${patient.name}.`);
+    return { state: next, message: `${patient.name} восстановил(а) одно здоровье.`, healedPlayerId: patient.id };
+  }
+
+  const target = players.find((player) => player.id === action.targetId && player.alive);
     if (!target || target.id === actorId) throw new Error("Можно допросить другого живого игрока.");
     const question = action.question.trim();
     if (!question || question.length > 180) throw new Error("Вопрос должен содержать от 1 до 180 символов.");
