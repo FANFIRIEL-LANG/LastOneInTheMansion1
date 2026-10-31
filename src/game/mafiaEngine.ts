@@ -50,7 +50,7 @@ export interface VoteResolution {
 }
 
 export type Victory = "guests" | "cult" | null;
-export const RITUAL_LIMIT = 5;
+export const RITUAL_LIMIT = 7;
 const WOUNDS_TO_GHOST = 2;
 
 export function roleSetForPlayerCount(count: number): MansionRoleId[] {
