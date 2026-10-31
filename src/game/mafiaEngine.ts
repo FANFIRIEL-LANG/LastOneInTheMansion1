@@ -1,6 +1,6 @@
 export type MansionFaction = "guests" | "cult";
-export type MansionRoleId = "cultist" | "acolyte" | "detective" | "doctor" | "medium" | "guardian" | "resident";
-export type NightActionKind = "cult-select" | "investigate" | "protect" | "ward" | "commune" | "listen" | "pass";
+export type MansionRoleId = "cultist" | "acolyte" | "detective" | "doctor" | "guardian" | "resident";
+export type NightActionKind = "cult-select" | "investigate" | "protect" | "ward" | "pass";
 
 export interface MansionRole {
   id: MansionRoleId;
@@ -16,9 +16,8 @@ export const MANSION_ROLES: Record<MansionRoleId, MansionRole> = {
   acolyte: { id: "acolyte", name: "Послушник", faction: "cult", nightAction: "cult-select", description: "Ты тайно помогаешь культу и знаешь его участников.", objective: "Помогай культу, сбивай расследование с пути и не выдавай союзников." },
   detective: { id: "detective", name: "Детектив", faction: "guests", nightAction: "investigate", description: "Ты расследуешь исчезновения в особняке.", objective: "Собирай правдивые сведения и помоги гостям вычислить культ." },
   doctor: { id: "doctor", name: "Доктор", faction: "guests", nightAction: "protect", description: "Ты можешь защитить одного гостя от ночного нападения.", objective: "Сохрани жизни и не дай культу ослабить группу." },
-  medium: { id: "medium", name: "Медиум", faction: "guests", nightAction: "commune", description: "Ты получаешь неполные послания от духов особняка.", objective: "Соедини обрывки посланий и помоги раскрыть правду." },
   guardian: { id: "guardian", name: "Хранитель", faction: "guests", nightAction: "ward", description: "Ты можешь поставить защиту на одного игрока.", objective: "Предугадывай опасность и защищай тех, кто важен для расследования." },
-  resident: { id: "resident", name: "Житель", faction: "guests", nightAction: "listen", description: "У тебя нет ночной способности, но ты участвуешь во всех общих действиях.", objective: "Используй публичные действия, личное задание и обсуждение, чтобы найти культ." }
+  resident: { id: "resident", name: "Житель", faction: "guests", nightAction: "pass", description: "У тебя нет особой способности. Твоя сила — наблюдательность, вопросы и доверие других гостей.", objective: "Сопоставляй публичные улики, замечай противоречия и помоги найти культ." }
 };
 
 export interface MansionPlayer {
@@ -56,10 +55,10 @@ const WOUNDS_TO_GHOST = 2;
 
 export function roleSetForPlayerCount(count: number): MansionRoleId[] {
   const sets: Record<number, MansionRoleId[]> = {
-    4: ["cultist", "detective", "doctor", "resident"],
-    5: ["cultist", "detective", "doctor", "medium", "resident"],
-    6: ["cultist", "acolyte", "detective", "doctor", "medium", "guardian"],
-    7: ["cultist", "acolyte", "detective", "doctor", "medium", "guardian", "resident"]
+    4: ["cultist", "detective", "resident", "resident"],
+    5: ["cultist", "detective", "doctor", "resident", "resident"],
+    6: ["cultist", "acolyte", "detective", "doctor", "resident", "resident"],
+    7: ["cultist", "acolyte", "detective", "doctor", "guardian", "resident", "resident"]
   };
   const roles = sets[count];
   if (!roles) throw new Error("В игре должно быть от 4 до 7 игроков.");
@@ -91,22 +90,9 @@ export function previewPrivateNightAction(players: MansionPlayer[], action: Nigh
       ? "Следы указывают на связь с культом."
       : "Ты не находишь признаков принадлежности к культу.";
   }
-  if (action.kind === "commune") {
-    const ghosts = players.filter((player) => !player.alive).length;
-    return ghosts > 0
-      ? `Духи шепчут: в особняке уже ${ghosts} призрачных присутствия.`
-      : "Духи молчат. Но под фундаментом что-то шевелится.";
-  }
-  if (action.kind === "listen") {
-    return ritualProgress >= 3
-      ? "Ты слышишь почти непрерывный шёпот. Ритуал близок к завершению."
-      : ritualProgress > 0
-        ? "Из-под пола доносится ритмичный шёпот. Ритуал уже начался."
-        : "Особняк затих. Пока ты не слышишь признаков начавшегося ритуала.";
-  }
   if (action.kind === "cult-select") return "Твой выбор принят. Остальные культисты не увидят, кого выбрал именно ты.";
   if (action.kind === "protect" || action.kind === "ward") return "Защита установлена. Теперь передай телефон дальше.";
-  return "Ночной ход завершён. Передай телефон дальше.";
+  return "Ночь проходит без особого действия. Передай телефон дальше.";
 }
 
 export function resolveNight(players: MansionPlayer[], actions: NightAction[], ritualProgress: number, publicProtectionTargetId: string | null = null): NightResolution {
@@ -123,7 +109,7 @@ export function resolveNight(players: MansionPlayer[], actions: NightAction[], r
     if (MANSION_ROLES[actor.roleId].nightAction !== action.kind) {
       throw new Error(`Роль игрока ${actor.name} не может выполнить это ночное действие.`);
     }
-    if (action.kind !== "pass" && action.kind !== "commune" && action.kind !== "listen") {
+    if (action.kind !== "pass") {
       const target = living.find((player) => player.id === action.targetId);
       const mayTargetSelf = action.kind === "protect" || action.kind === "ward";
       if (!target || (target.id === actor.id && !mayTargetSelf)) throw new Error("Нужно выбрать другого живого игрока.");
@@ -143,21 +129,6 @@ export function resolveNight(players: MansionPlayer[], actions: NightAction[], r
     privateResults[action.actorId] = MANSION_ROLES[target.roleId].faction === "cult"
       ? "Следы указывают на связь с культом."
       : "Ты не находишь признаков принадлежности к культу.";
-  }
-
-  for (const action of actions.filter((item) => item.kind === "listen")) {
-    privateResults[action.actorId] = ritualProgress >= 3
-      ? "Ты слышишь почти непрерывный шёпот. Ритуал близок к завершению."
-      : ritualProgress > 0
-        ? "Из-под пола доносится ритмичный шёпот. Ритуал уже начался."
-        : "Особняк затих. Пока ты не слышишь признаков начавшегося ритуала.";
-  }
-
-  for (const action of actions.filter((item) => item.kind === "commune")) {
-    const ghosts = players.filter((player) => !player.alive).length;
-    privateResults[action.actorId] = ghosts > 0
-      ? `Духи шепчут: в особняке уже ${ghosts} призрачных присутствия.`
-      : "Духи молчат. Но под фундаментом что-то шевелится.";
   }
 
   const choiceCounts = new Map<string, number>();
