@@ -1,5 +1,5 @@
 import type { MansionPlayer } from "./mafiaEngine";
-import type { DayState, EvidenceCard } from "./dayActions";
+import type { DayState } from "./dayActions";
 
 export type MansionEventId = "blood-moon" | "locked-basement" | "whispering-portrait";
 export type MansionEventChoiceId = "feed-ritual" | "resist-ritual" | "open-basement" | "seal-basement" | "listen-portrait" | "burn-portrait";
