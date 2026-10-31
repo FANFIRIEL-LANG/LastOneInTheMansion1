@@ -25,7 +25,8 @@ describe("public day actions", () => {
 
   it("makes shared evidence public and removes it from the player's private inventory", () => {
     const searched = resolvePublicAction(players, createDayState(clues), "p1", { type: "search-room", room: "library" });
-    const shared = resolvePublicAction(players, searched.state, "p1", { type: "share-evidence", evidenceId: "c1" });
+    const nextDay = { ...searched.state, day: 2, actionsUsed: [] };
+    const shared = resolvePublicAction(players, nextDay, "p1", { type: "share-evidence", evidenceId: "c1" });
     expect(shared.state.publicEvidence).toEqual([clues[0]]);
     expect(shared.state.privateEvidence.p1).toEqual([]);
   });
