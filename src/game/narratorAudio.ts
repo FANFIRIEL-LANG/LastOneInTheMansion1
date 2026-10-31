@@ -56,7 +56,10 @@ export function stopNarrator(): void {
 export function playNarratorClip(id: NarratorClipId, enabled: boolean): void {
   if (!enabled || typeof window === "undefined") return;
   stopNarrator();
+  let fallbackStarted = false;
   const fallback = () => {
+    if (fallbackStarted) return;
+    fallbackStarted = true;
     if (!("speechSynthesis" in window)) return;
     const utterance = new SpeechSynthesisUtterance(NARRATOR_TEXT[id]);
     utterance.lang = "ru-RU";
