@@ -9,6 +9,7 @@ import {
   type Victory
 } from "./mafiaEngine";
 import {
+  ACTIONS_PER_PLAYER_PER_DAY,
   createDayState,
   resolvePublicAction,
   type DayState,
@@ -67,7 +68,7 @@ export function startMansionSession(names: string[], clueDeck: EvidenceCard[]): 
 
 export function activeDayPlayer(session: MansionSession): MansionPlayer | null {
   if (session.phase !== "day-actions") return null;
-  return session.players.find((player) => player.alive && !session.dayState.actionsUsed.includes(player.id)) ?? null;
+  return session.players.find((player) => player.alive && session.dayState.actionsUsed.filter((id) => id === player.id).length < ACTIONS_PER_PLAYER_PER_DAY) ?? null;
 }
 
 export function activeNightPlayer(session: MansionSession): MansionPlayer | null {
