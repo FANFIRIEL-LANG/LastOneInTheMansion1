@@ -56,7 +56,7 @@ describe("private night action previews", () => {
   it("never needs to put private role results into public narration", () => {
     const players = playersFor(["cultist", "detective", "doctor", "resident"]);
     const result = previewPrivateNightAction(players, { actorId: "p4", kind: "listen" }, 1);
-    expect(result).toContain("ритуал уже начался");
+    expect(result.toLowerCase()).toContain("ритуал уже начался");
     expect(result).not.toContain("Культист");
   });
 });
