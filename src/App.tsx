@@ -455,8 +455,8 @@ export default function App() {
       {session.phase === "trial" && !pendingClue && <>
         {privateStep === "handoff" ? renderHandoff(trialVoters[trialVoterIndex], `ТАЙНОЕ ГОЛОСОВАНИЕ · ${trialVoterIndex + 1}/${trialVoters.length}`, () => { setPrivateStep("ready"); setPrivateVisible(true); }) : !privateVisible ? renderPrivateReady(trialVoters[trialVoterIndex], "ТАЙНЫЙ ГОЛОС", () => setPrivateVisible(true)) : <section className="panel narrative screen-enter">
           <div className="section-mark"><EyeOff size={23}/></div><p className="eyebrow">ЛИЧНЫЙ ГОЛОС · {trialVoters[trialVoterIndex]?.name}</p><h2>Кого<br/><em>изгнать?</em></h2>
-          <p className="muted">Выбор видит только голосующий. Призрак может отдать свой последний голос.</p>
-          {living.filter((p) => p.id !== trialVoters[trialVoterIndex]?.id).map((candidate) => <button className="choice" key={candidate.id} onClick={() => castTrialVote(candidate.id)}><span>›</span>{candidate.name}</button>)}
+          <p className="muted">Выбор видит только голосующий. Если выдвинуто два или больше подозреваемых, голосовать можно только за них. Призрак может отдать свой последний голос.</p>
+          {living.filter((p) => p.id !== trialVoters[trialVoterIndex]?.id && (session.dayState.nominations.length < 2 || session.dayState.nominations.includes(p.id))).map((candidate) => <button className="choice" key={candidate.id} onClick={() => castTrialVote(candidate.id)}><span>›</span>{candidate.name}</button>)}
           <p className="microcopy">Голоса: {Object.keys(trialVotes).length}/{trialVoters.length}. Для изгнания нужно строгое большинство.</p>
         </section>}
       </>}
