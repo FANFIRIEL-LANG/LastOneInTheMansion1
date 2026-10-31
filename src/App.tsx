@@ -74,6 +74,7 @@ export default function App() {
   const [ritualEvidenceA, setRitualEvidenceA] = useState("");
   const [ritualEvidenceB, setRitualEvidenceB] = useState("");
   const [nightTargetId, setNightTargetId] = useState("");
+  const [pendingClue, setPendingClue] = useState<{ playerId: string; clue: EvidenceCard } | null>(null);
 
   const players = session?.players ?? [];
   const currentRolePlayer = players[roleIndex];
@@ -164,6 +165,10 @@ export default function App() {
       setSession(next);
       setPrivateStep("handoff");
       setPrivateVisible(false);
+      if (action.type === "search-room") {
+        const clue = next.dayState.privateEvidence[dayActor.id]?.slice(-1)[0];
+        if (clue) setPendingClue({ playerId: dayActor.id, clue });
+      }
       setTargetId("");
       setEvidenceId("");
       setError("");
@@ -365,7 +370,15 @@ export default function App() {
         {session.lastPublicMessage && <p className="round-prompt">{session.lastPublicMessage}</p>}
       </section>
 
-      {session.phase === "day-actions" && dayActor && <>
+      {pendingClue && <>
+        {!privateVisible ? renderHandoff(players.find((player) => player.id === pendingClue.playerId)!, "ЛИЧНАЯ УЛИКА · НЕ ПОКАЗЫВАТЬ", () => setPrivateVisible(true)) : <section className="secret-card screen-enter warm">
+          <div className="secret-top"><span className="eyebrow">ТОЛЬКО ДЛЯ ВАШИХ ГЛАЗ</span><span className="classified">PRIVATE</span></div>
+          <p className="eyebrow">УЛИКА НАЙДЕНА</p><h2>{pendingClue.clue.title}</h2><p className="role-description">{pendingClue.clue.description}</p>
+          <p className="microcopy">Комната: {ROOMS.find((item) => item.id === pendingClue.clue.room)?.label}</p>
+          <button className="primary-button full" onClick={() => { setPendingClue(null); setPrivateVisible(false); }}>Скрыть улику и передать телефон <ChevronRight size={18}/></button>
+        </section>}
+      </>}
+      {session.phase === "day-actions" && dayActor && !pendingClue && <>
         {privateStep === "handoff" ? renderHandoff(dayActor, `ПУБЛИЧНЫЙ ХОД · ${session.dayState.actionsUsed.length + 1}/${living.length}`, () => setPrivateStep("ready")) : <section className="panel narrative screen-enter">
           <p className="eyebrow">ХОД ИГРОКА</p><h2>{dayActor.name}</h2>
           <p className="muted">Выбери одно действие. После этого можно обсуждать результат всей группой.</p>
@@ -381,7 +394,7 @@ export default function App() {
         </section>}
       </>}
 
-      {session.phase === "event" && event && <>
+      {session.phase === "event" && event && !pendingClue && <>
         {privateStep === "handoff" ? renderHandoff(eventVoters[eventVoterIndex], `ОБЩЕЕ РЕШЕНИЕ · ГОЛОС ${eventVoterIndex + 1}/${eventVoters.length}`, () => { setPrivateStep("ready"); setPrivateVisible(true); }) : !privateVisible ? renderPrivateReady(eventVoters[eventVoterIndex], "ТАЙНЫЙ ВЫБОР СОБЫТИЯ", () => setPrivateVisible(true)) : <section className="panel narrative screen-enter">
           <div className="section-mark"><Sparkles size={23}/></div><p className="eyebrow">СОБЫТИЕ ОСОБНЯКА · {eventVoters[eventVoterIndex]?.name}</p><h2>{event.title}</h2><p className="round-prompt">{event.description}</p>
           {event.choices.map((choice) => <button className="choice" key={choice.id} onClick={() => castEventVote(choice.id)}><span>›</span>{choice.label}</button>)}
@@ -389,7 +402,7 @@ export default function App() {
         </section>}
       </>}
 
-      {session.phase === "trial" && <>
+      {session.phase === "trial" && !pendingClue && <>
         {privateStep === "handoff" ? renderHandoff(trialVoters[trialVoterIndex], `ТАЙНОЕ ГОЛОСОВАНИЕ · ${trialVoterIndex + 1}/${trialVoters.length}`, () => { setPrivateStep("ready"); setPrivateVisible(true); }) : !privateVisible ? renderPrivateReady(trialVoters[trialVoterIndex], "ТАЙНЫЙ ГОЛОС", () => setPrivateVisible(true)) : <section className="panel narrative screen-enter">
           <div className="section-mark"><EyeOff size={23}/></div><p className="eyebrow">ЛИЧНЫЙ ГОЛОС · {trialVoters[trialVoterIndex]?.name}</p><h2>Кого<br/><em>изгнать?</em></h2>
           <p className="muted">Выбор видит только голосующий. Призрак может отдать свой последний голос.</p>
@@ -398,7 +411,7 @@ export default function App() {
         </section>}
       </>}
 
-      {session.phase === "night" && nightActor && <>
+      {session.phase === "night" && nightActor && !pendingClue && <>
         {privateStep === "handoff" ? renderHandoff(nightActor, `НОЧНОЙ ХОД · ${session.nightActionIndex + 1}/${session.nightTurnOrder.length}`, () => { setPrivateStep("ready"); setPrivateVisible(false); }) : !privateVisible ? renderPrivateReady(nightActor, "ЛИЧНОЕ НОЧНОЕ ДЕЙСТВИЕ", () => setPrivateVisible(true)) : <section className={`secret-card screen-enter ${MANSION_ROLES[nightActor.roleId].faction === "cult" ? "danger" : "warm"}`}>
           <div className="secret-top"><span className="eyebrow">НОЧЬ · ЛИЧНОЕ ДЕЙСТВИЕ</span><span className="classified">SECRET</span></div>
           <p className="eyebrow">{nightActor.name.toUpperCase()}</p><h2>{MANSION_ROLES[nightActor.roleId].name}</h2>
@@ -411,7 +424,7 @@ export default function App() {
         </section>}
       </>}
 
-      {session.phase === "night-results" && resultActor && <>
+      {session.phase === "night-results" && resultActor && !pendingClue && <>
         {!privateVisible ? renderHandoff(resultActor, "ЛИЧНАЯ НОЧНАЯ ПОДСКАЗКА", revealNightResult) : <section className="secret-card screen-enter warm">
           <div className="secret-top"><span className="eyebrow">ТОЛЬКО ДЛЯ ВАШИХ ГЛАЗ</span><span className="classified">PRIVATE</span></div>
           <p className="eyebrow">{resultActor.name.toUpperCase()}</p><h2>Результат ночи</h2>
@@ -419,7 +432,7 @@ export default function App() {
           <button className="primary-button full" onClick={acknowledgeNightResult}>Скрыть и передать дальше <ChevronRight size={18}/></button>
         </section>}
       </>}
-      {session.phase === "ending" && <section className="panel narrative screen-enter">
+      {session.phase === "ending" && !pendingClue && <section className="panel narrative screen-enter">
         <div className="section-mark"><Skull size={24}/></div><p className="eyebrow">РАССВЕТ · ИГРА ЗАВЕРШЕНА</p><h2>{session.winner === "guests" ? "Гости спасены" : "Культ победил"}</h2>
         <p className="ending-copy">{session.winner === "guests" ? "Последний культист разоблачён. С первыми лучами солнца двери особняка распахиваются." : "Ритуал завершён или культ получил численный перевес. Особняк забирает всех."}</p>
         <div className="results">{players.map((player) => <div className="result-row" key={player.id}><span>{player.name}{player.alive ? "" : " · выбыл"}</span><strong>{MANSION_ROLES[player.roleId].name}</strong><small>{MANSION_ROLES[player.roleId].faction === "cult" ? "Культ" : "Гости"}</small></div>)}</div>
