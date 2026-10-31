@@ -79,6 +79,36 @@ export function createMansionPlayers(names: string[]): MansionPlayer[] {
   }));
 }
 
+/** Preview shown only to the current player before the phone is passed on. Never send this text to narration. */
+export function previewPrivateNightAction(players: MansionPlayer[], action: NightAction, ritualProgress: number): string {
+  const actor = players.find((player) => player.id === action.actorId);
+  if (!actor) throw new Error("Неизвестный игрок.");
+  if (!actor.alive) return "Ты остаёшься в тени. Передай телефон дальше.";
+  if (action.kind === "investigate") {
+    const target = players.find((player) => player.id === action.targetId && player.alive);
+    if (!target) throw new Error("Неизвестная цель расследования.");
+    return MANSION_ROLES[target.roleId].faction === "cult"
+      ? "Следы указывают на связь с культом."
+      : "Ты не находишь признаков принадлежности к культу.";
+  }
+  if (action.kind === "commune") {
+    const ghosts = players.filter((player) => !player.alive).length;
+    return ghosts > 0
+      ? `Духи шепчут: в особняке уже ${ghosts} призрачных присутствия.`
+      : "Духи молчат. Но под фундаментом что-то шевелится.";
+  }
+  if (action.kind === "listen") {
+    return ritualProgress >= 3
+      ? "Ты слышишь почти непрерывный шёпот. Ритуал близок к завершению."
+      : ritualProgress > 0
+        ? "Из-под пола доносится ритмичный шёпот. Ритуал уже начался."
+        : "Особняк затих. Пока ты не слышишь признаков начавшегося ритуала.";
+  }
+  if (action.kind === "cult-select") return "Твой выбор принят. Остальные культисты не увидят, кого выбрал именно ты.";
+  if (action.kind === "protect" || action.kind === "ward") return "Защита установлена. Теперь передай телефон дальше.";
+  return "Ночной ход завершён. Передай телефон дальше.";
+}
+
 export function resolveNight(players: MansionPlayer[], actions: NightAction[], ritualProgress: number, publicProtectionTargetId: string | null = null): NightResolution {
   const living = players.filter((player) => player.alive);
   if (actions.length !== living.length) throw new Error("Каждый живой игрок должен получить приватный ночной ход.");
