@@ -90,7 +90,7 @@ export default function App() {
     setTransfer((state) => revealRole(state));
     setShowRoleDetails(true);
     setScreen("secret");
-    if (currentPlayer) speak(`${currentPlayer.name}. Ваша роль: ${currentPlayer.role.name}. ${currentPlayer.role.description} Ваша цель: ${currentPlayer.role.objective}`, speechEnabled);
+    // Private role, faction, description and objective must never enter the public narration queue.
   }
 
   function confirmRoleAndPass() {
