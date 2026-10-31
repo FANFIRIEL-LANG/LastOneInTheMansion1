@@ -69,7 +69,7 @@ describe("private night resolution", () => {
     const result = resolveNight(players, actions, 0);
     expect(result.privateResults.p2).toContain("культом");
     expect(result.privateResults.p4).toContain("Особняк затих");
-    expect(Object.keys(result.privateResults)).toEqual(["p2", "p3", "p4"]);
+    expect(Object.keys(result.privateResults).sort()).toEqual(["p2", "p3", "p4"]);
   });
 
   it("adds a wound and ritual progress when an unprotected target is attacked", () => {
