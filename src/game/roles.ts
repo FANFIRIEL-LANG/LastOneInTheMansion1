@@ -31,7 +31,7 @@ function secureShuffle<T>(items: T[]): T[] {
   return result;
 }
 function randomInt(max: number): number {
-  if (globalThis.crypto?.getRandomValues) {
+  if (typeof globalThis.crypto !== "undefined") {
     const value = new Uint32Array(1);
     const limit = Math.floor(0x1_0000_0000 / max) * max;
     do { crypto.getRandomValues(value); } while (value[0] >= limit);
