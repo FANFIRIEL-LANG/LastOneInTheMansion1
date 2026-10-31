@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, AudioLines, BookOpen, Check, ChevronRight, DoorOpen, Eye, EyeOff, Ghost, Moon, Shield, Skull, Sparkles, Volume2, VolumeX } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, AudioLines, Check, ChevronRight, DoorOpen, Eye, EyeOff, Ghost, Moon, Shield, Skull, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { assignRoles } from "./game/roles";
 import { INTRO, ROUNDS } from "./game/story";
-import type { Player, Role } from "./game/types";
+import type { Player } from "./game/types";
 import { confirmPhoneReceived, hideAndPass, revealRole, startRoleFlow, type TransferState } from "./game/transfer";
 
 type Screen = "home" | "setup" | "handoff" | "ready" | "secret" | "intro" | "round" | "vote" | "ending";
@@ -28,8 +28,6 @@ export default function App() {
   const [speechEnabled, setSpeechEnabled] = useState(true);
   const [showRoleDetails, setShowRoleDetails] = useState(true);
   const [error, setError] = useState("");
-  const [readyCount, setReadyCount] = useState(false);
-  const secretRef = useRef<HTMLDivElement>(null);
 
   const currentPlayer = players[transfer.playerIndex];
   const round = ROUNDS[roundIndex % ROUNDS.length];
@@ -118,11 +116,6 @@ export default function App() {
     });
   }
 
-  function nextRound() {
-    setRoundIndex((value) => value + 1);
-    setScreen("round");
-  }
-
   function reset() {
     window.speechSynthesis?.cancel();
     setPlayers([]);
@@ -187,7 +180,7 @@ export default function App() {
         <button className="primary-button full" onClick={revealCurrentRole}>Получить роль <Eye size={17}/></button>
       </section>}
 
-      {screen === "secret" && currentPlayer && <section className={`secret-card screen-enter ${roleColor}`} ref={secretRef}>
+      {screen === "secret" && currentPlayer && <section className={`secret-card screen-enter ${roleColor}`} >
         <div className="secret-top"><span className="eyebrow">ЛИЧНОЕ ДЕЛО · НЕ ПОКАЗЫВАТЬ</span><span className="classified">CLASSIFIED</span></div>
         <div className="role-icon">{currentPlayer.role.team === "entity" ? <Skull size={35}/> : <Shield size={35}/>}</div>
         <p className="eyebrow">{currentPlayer.name.toUpperCase()}, ЭТО ВАША РОЛЬ</p>
