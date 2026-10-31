@@ -84,6 +84,20 @@ describe("Mafia game session state machine", () => {
     expect(session.phase).toBe("trial");
   });
 
+  it("restricts trial votes to nominated suspects when at least two are nominated", () => {
+    let session = startMansionSession(["A", "B", "C", "D"], deck);
+    while (session.phase === "day-actions") {
+      const actor = activeDayPlayer(session)!;
+      const target = session.players.find((player) => player.alive && player.id !== actor.id)!;
+      session = submitDayAction(session, actor.id, { type: "interrogate", targetId: target.id, question: "Где ты был?" });
+    }
+    session = finishEvent(session);
+    const nominated = session.players.slice(0, 2).map((player) => player.id);
+    session = { ...session, dayState: { ...session.dayState, nominations: nominated } };
+    const invalidVotes = Object.fromEntries(session.players.map((player) => [player.id, session.players.find((candidate) => !nominated.includes(candidate.id))!.id]));
+    expect(() => submitTrialVotes(session, invalidVotes)).toThrow(/выдвинутых на суд/);
+  });
+
   it("moves from trial to night when the vote does not end the game", () => {
     let session = startMansionSession(["A", "B", "C", "D"], deck);
     while (session.phase === "day-actions") {
