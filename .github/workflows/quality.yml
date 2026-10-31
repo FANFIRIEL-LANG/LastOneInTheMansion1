@@ -1,4 +1,4 @@
-name: Quality checks
+name: Test and build
 on:
   push:
     branches: [main]
@@ -18,4 +18,4 @@ jobs:
           cache: npm
       - run: npm install
       - run: npm run build
-      - run: npm test --if-present
+      - run: npm test
