@@ -39,7 +39,7 @@ describe("Mafia game session state machine", () => {
     session = finishEvent(session);
     expect(session.phase).toBe("trial");
     expect(session.eventHistory).toHaveLength(1);
-    expect(session.dayState.actionsUsed).toHaveLength(4);
+    expect(session.dayState.actionsUsed).toHaveLength(8);
     expect(() => submitDayAction(session, "p1", { type: "accuse", targetId: "p2" })).toThrow();
   });
 
