@@ -22,7 +22,7 @@ import { playNarratorClip, playNarratorSequence, stopNarrator, type NarratorClip
 
 type Screen = "home" | "setup" | "roles" | "intro" | "game";
 type PrivateStep = "handoff" | "ready" | "secret";
-type DayActionType = "search-room" | "interrogate" | "share-evidence" | "study-ritual" | "guard-player" | "accuse";
+type DayActionType = "search-room" | "interrogate" | "share-evidence" | "study-ritual" | "guard-player" | "treat-player" | "accuse";
 
 const CLUES: EvidenceCard[] = [
   { id: "r1", title: "Пепельный знак", description: "На камне выжжен символ, похожий на раскрытый глаз.", room: "library", kind: "ritual", isFalseLead: false },
@@ -315,6 +315,7 @@ export default function App() {
     { id: "share-evidence", label: "Раскрыть свою улику" },
     { id: "study-ritual", label: "Изучить ритуал" },
     { id: "guard-player", label: "Публично защитить" },
+    { id: "treat-player", label: "Оказать первую помощь" },
     { id: "accuse", label: "Выдвинуть на суд" }
   ];
 
@@ -409,6 +410,7 @@ export default function App() {
           {dayActionType === "share-evidence" && <><p className="muted">Твои личные улики: {(session.dayState.privateEvidence[dayActor.id] ?? []).length}</p><select value={evidenceId} onChange={(e) => setEvidenceId(e.target.value)}><option value="">Выбери улику</option>{(session.dayState.privateEvidence[dayActor.id] ?? []).map((card) => <option value={card.id} key={card.id}>{card.title}</option>)}</select><button className="primary-button full" disabled={!evidenceId} onClick={() => submitAction({ type: "share-evidence", evidenceId })}>Показать улику всем</button></>}
           {dayActionType === "study-ritual" && <><p className="muted">Нужны две публичные ритуальные улики. Снижение прогресса на 1.</p><select value={ritualEvidenceA} onChange={(e) => setRitualEvidenceA(e.target.value)}><option value="">Первая улика</option>{session.dayState.publicEvidence.filter((card) => card.kind === "ritual").map((card) => <option key={card.id} value={card.id}>{card.title}</option>)}</select><select value={ritualEvidenceB} onChange={(e) => setRitualEvidenceB(e.target.value)}><option value="">Вторая улика</option>{session.dayState.publicEvidence.filter((card) => card.kind === "ritual" && card.id !== ritualEvidenceA).map((card) => <option key={card.id} value={card.id}>{card.title}</option>)}</select><button className="primary-button full" disabled={!ritualEvidenceA || !ritualEvidenceB} onClick={() => submitAction({ type: "study-ritual", evidenceIds: [ritualEvidenceA, ritualEvidenceB] })}>Замедлить ритуал</button></>}
           {(dayActionType === "guard-player" || dayActionType === "accuse") && <><select value={targetId} onChange={(e) => setTargetId(e.target.value)}><option value="">Выбери игрока</option>{living.filter((p) => p.id !== dayActor.id).map((p) => <option value={p.id} key={p.id}>{p.name}</option>)}</select><button className="primary-button full" disabled={!targetId} onClick={() => submitAction(dayActionType === "guard-player" ? { type: "guard-player", targetId } : { type: "accuse", targetId })}>{dayActionType === "guard-player" ? "Публично защитить" : "Выдвинуть на суд"}</button></>}
+          {dayActionType === "treat-player" && <><p className="muted">Первая помощь доступна один раз за день. Можно восстановить одно здоровье живому раненому.</p><select value={targetId} onChange={(e) => setTargetId(e.target.value)}><option value="">Кого перевязать?</option>{living.filter((p) => p.wounds > 0).map((p) => <option value={p.id} key={p.id}>{p.name} · рана {p.wounds}/2</option>)}</select><button className="primary-button full" disabled={!targetId || Boolean(session.dayState.publicTreatedPlayerId)} onClick={() => submitAction({ type: "treat-player", targetId })}>Оказать первую помощь</button></>}
           {error && <p className="error-text">{error}</p>}
           <div className="host-line"><AudioLines size={17}/><span>Публичное обсуждение происходит голосом игроков, не через приложение.</span></div>
           <p className="microcopy">Публичные улики: {session.dayState.publicEvidence.map((card) => card.title).join(" · ") || "пока нет"}</p>
