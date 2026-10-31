@@ -40,8 +40,10 @@ export const NARRATOR_TEXT: Record<NarratorClipId, string> = {
 };
 
 let activeAudio: HTMLAudioElement | null = null;
+let narrationGeneration = 0;
 
 export function stopNarrator(): void {
+  narrationGeneration += 1;
   if (activeAudio) {
     activeAudio.pause();
     activeAudio.currentTime = 0;
@@ -52,25 +54,48 @@ export function stopNarrator(): void {
   }
 }
 
-/** Plays a bundled offline MP3. Until recordings are added, uses the browser voice as a temporary fallback. */
-export function playNarratorClip(id: NarratorClipId, enabled: boolean): void {
-  if (!enabled || typeof window === "undefined") return;
+/** Plays bundled MP3s in order. Until recordings are added, uses the browser voice as a temporary fallback. */
+export function playNarratorSequence(ids: NarratorClipId[], enabled: boolean): void {
+  if (!enabled || typeof window === "undefined" || ids.length === 0) return;
   stopNarrator();
-  let fallbackStarted = false;
-  const fallback = () => {
-    if (fallbackStarted) return;
-    fallbackStarted = true;
-    if (!("speechSynthesis" in window)) return;
-    const utterance = new SpeechSynthesisUtterance(NARRATOR_TEXT[id]);
-    utterance.lang = "ru-RU";
-    utterance.rate = 0.92;
-    utterance.pitch = 0.86;
-    window.speechSynthesis.speak(utterance);
+  const generation = narrationGeneration;
+  let index = 0;
+
+  const playNext = () => {
+    if (generation !== narrationGeneration || index >= ids.length) return;
+    const id = ids[index++];
+    const audio = new Audio(`/audio/narrator/${id}.mp3`);
+    activeAudio = audio;
+    audio.preload = "auto";
+    let fallbackStarted = false;
+
+    const fallback = () => {
+      if (fallbackStarted || generation !== narrationGeneration) return;
+      fallbackStarted = true;
+      if (!("speechSynthesis" in window)) {
+        activeAudio = null;
+        playNext();
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(NARRATOR_TEXT[id]);
+      utterance.lang = "ru-RU";
+      utterance.rate = 0.92;
+      utterance.pitch = 0.86;
+      utterance.onend = playNext;
+      window.speechSynthesis.speak(utterance);
+    };
+
+    audio.onended = () => {
+      if (activeAudio === audio) activeAudio = null;
+      playNext();
+    };
+    audio.onerror = fallback;
+    void audio.play().catch(fallback);
   };
-  const audio = new Audio(`/audio/narrator/${id}.mp3`);
-  activeAudio = audio;
-  audio.preload = "auto";
-  audio.onended = () => { if (activeAudio === audio) activeAudio = null; };
-  audio.onerror = fallback;
-  void audio.play().catch(fallback);
+
+  playNext();
+}
+
+export function playNarratorClip(id: NarratorClipId, enabled: boolean): void {
+  playNarratorSequence([id], enabled);
 }
