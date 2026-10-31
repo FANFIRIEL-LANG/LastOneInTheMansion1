@@ -17,7 +17,7 @@ import {
 } from "./dayActions";
 import { resolveMansionEvent, shuffleEvents, type MansionEvent, type MansionEventChoiceId } from "./events";
 
-export type SessionPhase = "day-actions" | "event" | "event-private" | "trial" | "night" | "ending";
+export type SessionPhase = "day-actions" | "event" | "event-private" | "trial" | "night" | "night-results" | "ending";
 
 export interface MansionSession {
   players: MansionPlayer[];
@@ -33,6 +33,8 @@ export interface MansionSession {
   nightTurnOrder: string[];
   nightActionIndex: number;
   nightActions: NightAction[];
+  nightResultOrder: string[];
+  nightResultIndex: number;
   lastNight: NightResolution | null;
   winner: Victory;
   lastPublicMessage: string;
@@ -55,6 +57,8 @@ export function startMansionSession(names: string[], clueDeck: EvidenceCard[]): 
     nightTurnOrder: [],
     nightActionIndex: 0,
     nightActions: [],
+    nightResultOrder: [],
+    nightResultIndex: 0,
     lastNight: null,
     winner: null,
     lastPublicMessage: ""
@@ -148,6 +152,20 @@ export function submitTrialVotes(session: MansionSession, votes: Record<string, 
   };
 }
 
+export function activeNightResultPlayer(session: MansionSession): MansionPlayer | null {
+  if (session.phase !== "night-results") return null;
+  const id = session.nightResultOrder[session.nightResultIndex];
+  return session.players.find((player) => player.id === id) ?? null;
+}
+
+export function completeNightResultReveal(session: MansionSession, playerId: string): MansionSession {
+  const active = activeNightResultPlayer(session);
+  if (!active || active.id !== playerId) throw new Error("Эта ночная информация предназначена другому игроку.");
+  const nextIndex = session.nightResultIndex + 1;
+  if (nextIndex < session.nightResultOrder.length) return { ...session, nightResultIndex: nextIndex };
+  return advanceToNextDay(session);
+}
+
 export function submitNightAction(session: MansionSession, action: NightAction): MansionSession {
   if (session.phase !== "night") throw new Error("Сейчас не ночная фаза.");
   const actor = activeNightPlayer(session);
@@ -180,19 +198,38 @@ export function submitNightAction(session: MansionSession, action: NightAction):
     };
   }
 
+  const resultPlayers = resolution.players;
+  const privatePlayerIds = Object.keys(resolution.privateResults);
+  const base: MansionSession = {
+    ...session,
+    players: resultPlayers,
+    ritualProgress: resolution.ritualProgress,
+    nightActions: collected,
+    lastNight: resolution,
+    nightResultOrder: privatePlayerIds,
+    nightResultIndex: 0,
+    winner: null,
+    lastPublicMessage: "Ночь закончилась. Наступает новый день."
+  };
+  if (privatePlayerIds.length > 0) return { ...base, phase: "night-results" };
+  return advanceToNextDay(base);
+}
+
+function advanceToNextDay(session: MansionSession): MansionSession {
   const nextDay = session.day + 1;
+  const dayState = createDayState(session.dayState.clueDeck, session.ritualProgress, nextDay);
+  dayState.privateEvidence = Object.fromEntries(Object.entries(session.dayState.privateEvidence).map(([id, cards]) => [id, [...cards]]));
+  dayState.publicEvidence = [...session.dayState.publicEvidence];
   return {
     ...session,
-    players: resolution.players,
-    ritualProgress: resolution.ritualProgress,
     day: nextDay,
     phase: "day-actions",
-    dayState: createDayState(session.dayState.clueDeck, resolution.ritualProgress, nextDay),
+    dayState,
     nightTurnOrder: [],
     nightActionIndex: 0,
     nightActions: [],
-    lastNight: resolution,
-    winner: null,
+    nightResultOrder: [],
+    nightResultIndex: 0,
     lastPublicMessage: "Наступает новый день. Особняк хранит ещё больше тайн."
   };
 }
