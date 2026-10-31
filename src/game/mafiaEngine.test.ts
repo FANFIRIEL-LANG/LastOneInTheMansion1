@@ -67,7 +67,7 @@ describe("private night action previews", () => {
 });
 
 describe("private night resolution", () => {
-  it("requires a meaningful private turn for every living player, including residents", () => {
+  it("gives every living player an equalized private handoff, including residents", () => {
     const players = playersFor(["cultist", "detective", "doctor", "resident"]);
     const actions: NightAction[] = [
       { actorId: "p1", kind: "cult-select", targetId: "p4" },
@@ -99,7 +99,7 @@ describe("private night resolution", () => {
       { actorId: "p1", kind: "cult-select", targetId: "p4" },
       { actorId: "p2", kind: "investigate", targetId: "p1" },
       { actorId: "p3", kind: "protect", targetId: "p3" },
-      { actorId: "p4", kind: "listen" }
+      { actorId: "p4", kind: "pass" }
     ];
     const result = resolveNight(players, actions, 1);
     expect(result.players.find((player) => player.id === "p4")?.wounds).toBe(1);
