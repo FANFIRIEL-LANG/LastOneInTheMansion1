@@ -1,7 +1,7 @@
 name: Test and build
 on:
   push:
-    branches: [main, fix/ios-secret-screen-lifecycle]
+    branches: [main, fix/ios-secret-screen-lifecycle, feature/mafia-halloween-rework]
   pull_request:
     branches: [main]
   workflow_dispatch:
