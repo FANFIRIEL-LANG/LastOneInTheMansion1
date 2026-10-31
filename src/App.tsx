@@ -3,6 +3,7 @@ import { ArrowLeft, AudioLines, Check, ChevronRight, DoorOpen, Eye, EyeOff, Ghos
 import { assignRoles } from "./game/roles";
 import { INTRO, ROUNDS } from "./game/story";
 import type { Player } from "./game/types";
+import { getWinningTeam } from "./game/outcome";
 import { concealRole, confirmPhoneReceived, hideAndPass, revealRole, startRoleFlow, type TransferState } from "./game/transfer";
 
 type Screen = "home" | "setup" | "handoff" | "ready" | "secret" | "intro" | "round" | "vote" | "ending";
@@ -131,8 +132,7 @@ export default function App() {
 
   const roleColor = currentPlayer?.role.team === "entity" ? "danger" : "warm";
   const possessed = players.find((player) => player.role.team === "entity");
-  const possessedVotes = possessed ? Object.values(votes).filter((id) => id === possessed.id).length : 0;
-  const guestsWon = possessedVotes >= Math.floor(players.length / 2) + 1;
+  const guestsWon = possessed ? getWinningTeam(possessed.id, votes, players.length) === "guests" : false;
 
   return (
     <main className="app-shell">
