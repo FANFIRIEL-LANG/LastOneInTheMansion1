@@ -1,0 +1,13 @@
+{
+  "name": "Последний в особняке",
+  "short_name": "Особняк",
+  "description": "Halloween-игра для компании",
+  "lang": "ru",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#11100f",
+  "theme_color": "#11100f",
+  "orientation": "portrait",
+  "icons": [{ "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
