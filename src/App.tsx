@@ -36,7 +36,15 @@ const CLUES: EvidenceCard[] = [
   { id: "r4", title: "Костяная печать", description: "Под слоем пыли обнаружена печать с тем же символом.", room: "observatory", kind: "ritual", isFalseLead: false },
   { id: "t3", title: "Дневник смотрителя", description: "Последняя запись сделана рукой, которой не было в доме сорок лет.", room: "basement", kind: "testimony", isFalseLead: false },
   { id: "f4", title: "Мокрые следы", description: "Следы ведут к двери, но заканчиваются посреди комнаты.", room: "observatory", kind: "trace", isFalseLead: true },
-  { id: "r5", title: "Обугленный свиток", description: "Осталась фраза: «Пять голосов откроют врата».", room: "chapel", kind: "ritual", isFalseLead: false }
+  { id: "r5", title: "Обугленный свиток", description: "Осталась фраза: «Пять голосов откроют врата».", room: "chapel", kind: "ritual", isFalseLead: false },
+  { id: "r6", title: "Карта созвездий", description: "Пять звёзд соединены линиями вокруг отметки на старом поместье.", room: "observatory", kind: "ritual", isFalseLead: false },
+  { id: "r7", title: "Ключ с костяной рукоятью", description: "На металле выгравированы слова: «Врата помнят кровь».", room: "basement", kind: "ritual", isFalseLead: false },
+  { id: "r8", title: "Пепел под алтарём", description: "В пепле сохранился фрагмент круга с тем же знаком, что и в библиотеке.", room: "chapel", kind: "ritual", isFalseLead: false },
+  { id: "t4", title: "Письмо без адресата", description: "Автор пишет, что один из гостей уже бывал в особняке, хотя все отрицают знакомство.", room: "library", kind: "testimony", isFalseLead: false },
+  { id: "t5", title: "Запись смотрителя", description: "В журнале отмечено, что каждую ночь кто-то спускается в подвал после второго удара часов.", room: "kitchen", kind: "testimony", isFalseLead: false },
+  { id: "t6", title: "Семейная фотография", description: "На обороте перечислены имена, одно из которых совпадает с именем нынешнего гостя.", room: "observatory", kind: "testimony", isFalseLead: false },
+  { id: "f5", title: "Порванная лента", description: "Лента выглядит свежей, но её цвет выцвел много десятилетий назад.", room: "basement", kind: "trace", isFalseLead: true },
+  { id: "f6", title: "Следы золы", description: "Следы ведут к часовне, хотя в камине давно никто не разводил огонь.", room: "kitchen", kind: "trace", isFalseLead: true }
 ];
 
 const ROOMS: { id: MansionRoom; label: string }[] = [
