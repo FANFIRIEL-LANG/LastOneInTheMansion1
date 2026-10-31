@@ -5,6 +5,7 @@ import {
   activeNightPlayer,
   activeNightResultPlayer,
   completeNightResultReveal,
+  completeEventPrivateReveal,
   getEligibleVoters,
   startMansionSession,
   submitDayAction,
@@ -252,6 +253,20 @@ export default function App() {
     setPrivateVisible(true);
   }
 
+  function acknowledgeEventPrivateReveal() {
+    if (!session || !session.eventPrivatePlayerId) return;
+    try {
+      const next = completeEventPrivateReveal(session, session.eventPrivatePlayerId);
+      setSession(next);
+      setPrivateVisible(false);
+      setPrivateStep("handoff");
+      setError("");
+      playNarratorClip("narrator_trial", speechEnabled);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Не удалось закрыть личную подсказку.");
+    }
+  }
+
   function acknowledgeNightResult() {
     if (!session || !resultActor) return;
     try {
@@ -369,7 +384,7 @@ export default function App() {
 
     {screen === "game" && session && <>
       <section className="panel narrative screen-enter">
-        <div className="round-counter">ДЕНЬ {session.day} <span>·</span> {session.phase === "day-actions" ? "ПУБЛИЧНЫЕ ДЕЙСТВИЯ" : session.phase === "event" ? "СОБЫТИЕ" : session.phase === "trial" ? "ТАЙНОЕ ГОЛОСОВАНИЕ" : session.phase === "night" ? "НОЧЬ" : session.phase === "night-results" ? "ЛИЧНЫЕ РЕЗУЛЬТАТЫ" : "ИТОГ"}</div>
+        <div className="round-counter">ДЕНЬ {session.day} <span>·</span> {session.phase === "day-actions" ? "ПУБЛИЧНЫЕ ДЕЙСТВИЯ" : session.phase === "event" ? "СОБЫТИЕ" : session.phase === "trial" ? "ТАЙНОЕ ГОЛОСОВАНИЕ" : session.phase === "night" ? "НОЧЬ" : session.phase === "night-results" ? "ЛИЧНЫЕ РЕЗУЛЬТАТЫ" : session.phase === "event-private" ? "ЛИЧНАЯ ПОДСКАЗКА" : "ИТОГ"}</div>
         <div className="section-mark"><Sparkles size={23}/></div>
         <p className="eyebrow">ОСОБНЯК · РИТУАЛ {session.ritualProgress}/5</p>
         <div className="player-status">{players.map((player) => <span className={player.alive ? "status-alive" : "status-ghost"} key={player.id}>{player.name}{player.alive ? (player.wounds > 0 ? ` · рана ${player.wounds}/2` : "") : " · призрак"}</span>)}</div>
@@ -407,6 +422,25 @@ export default function App() {
           <p className="microcopy">Голос тайный. Решение требует строгого большинства; иначе сработает исход по умолчанию.</p>
         </section>}
       </>}
+
+      {session.phase === "event-private" && session.eventPrivatePlayerId && !pendingClue && (() => {
+        const privatePlayer = players.find((player) => player.id === session.eventPrivatePlayerId);
+        if (!privatePlayer) return null;
+        const privateMessage = session.lastEventPrivateResults[privatePlayer.id] || "Особняк оставил вам личную подсказку. Сохраните её в тайне.";
+        return <>
+          {privateStep === "handoff"
+            ? renderHandoff(privatePlayer, "ЛИЧНАЯ ПОДСКАЗКА · НЕ ПОКАЗЫВАТЬ", () => { setPrivateStep("ready"); setPrivateVisible(false); })
+            : !privateVisible
+              ? renderPrivateReady(privatePlayer, "ТОЛЬКО ДЛЯ ВАШИХ ГЛАЗ", () => setPrivateVisible(true))
+              : <section className="secret-card screen-enter warm">
+                  <div className="secret-top"><span className="eyebrow">СОБЫТИЕ ОСОБНЯКА · ЛИЧНОЕ</span><span className="classified">PRIVATE</span></div>
+                  <p className="eyebrow">{privatePlayer.name.toUpperCase()}</p>
+                  <h2>Тайна особняка</h2>
+                  <p className="role-description">{privateMessage}</p>
+                  <button className="primary-button full" onClick={acknowledgeEventPrivateReveal}>Скрыть и перейти к суду <ChevronRight size={18}/></button>
+                </section>}
+        </>;
+      })()}
 
       {session.phase === "trial" && !pendingClue && <>
         {privateStep === "handoff" ? renderHandoff(trialVoters[trialVoterIndex], `ТАЙНОЕ ГОЛОСОВАНИЕ · ${trialVoterIndex + 1}/${trialVoters.length}`, () => { setPrivateStep("ready"); setPrivateVisible(true); }) : !privateVisible ? renderPrivateReady(trialVoters[trialVoterIndex], "ТАЙНЫЙ ГОЛОС", () => setPrivateVisible(true)) : <section className="panel narrative screen-enter">
