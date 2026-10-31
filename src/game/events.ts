@@ -3,7 +3,7 @@ import type { DayState } from "./dayActions";
 
 export type MansionEventId = "blood-moon" | "locked-basement" | "whispering-portrait";
 export type MansionEventChoiceId = "feed-ritual" | "resist-ritual" | "open-basement" | "seal-basement" | "listen-portrait" | "burn-portrait";
-export type EventEffect = "ritual-up" | "ritual-down" | "reveal-clue" | "ritual-up-if-closed" | "medium-omen" | "burn-clue";
+export type EventEffect = "ritual-up" | "ritual-down" | "reveal-clue" | "ritual-up-if-closed" | "burn-clue";
 
 export interface MansionEventChoice {
   id: MansionEventChoiceId;
@@ -45,7 +45,7 @@ export const MANSION_EVENT_DECK: MansionEvent[] = [
     title: "Шепчущий портрет",
     description: "С портрета осыпается краска. Из-под неё проступает чужое лицо.",
     choices: [
-      { id: "listen-portrait", label: "Прислушаться к голосу портрета", effect: "medium-omen" },
+      { id: "listen-portrait", label: "Прислушаться к голосу портрета", effect: "reveal-clue" },
       { id: "burn-portrait", label: "Сжечь портрет вместе с уликой", effect: "burn-clue" }
     ],
     defaultChoiceId: "burn-portrait"
@@ -123,18 +123,6 @@ export function resolveMansionEvent(
         publicMessage = `Из подвала извлечена улика: ${clue.title}.`;
       } else {
         publicMessage = "За дверью ничего не осталось.";
-      }
-      break;
-    }
-    case "medium-omen": {
-      const medium = eligible.find((player) => player.roleId === "medium");
-      if (medium) {
-        privateResults[medium.id] = next.ritualProgress >= 3
-          ? "Портрет шепчет: ритуал почти завершён."
-          : "Портрет шепчет о движении под фундаментом.";
-        publicMessage = "Портрет замолкает. Медиуму удалось разобрать его шёпот.";
-      } else {
-        publicMessage = "Портрет замолкает. Никто не смог разобрать его шёпот.";
       }
       break;
     }
