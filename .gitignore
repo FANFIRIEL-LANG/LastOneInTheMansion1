@@ -1,0 +1,9 @@
+node_modules
+dist
+.capacitor
+ios/App/Pods
+*.p12
+*.mobileprovision
+.env
+.env.*
+.DS_Store
