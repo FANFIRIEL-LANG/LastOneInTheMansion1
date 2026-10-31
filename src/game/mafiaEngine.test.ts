@@ -192,7 +192,7 @@ describe("secret trial voting and victory", () => {
 
   it("ends for the cult when ritual is complete or cult reaches parity", () => {
     const players = playersFor(["cultist", "acolyte", "detective", "doctor", "resident", "resident"]);
-    expect(getMansionVictory(players, 5)).toBe("cult");
+    expect(getMansionVictory(players, 7)).toBe("cult");
     players[2].alive = false;
     players[3].alive = false;
     expect(getMansionVictory(players, 0)).toBe("cult");
