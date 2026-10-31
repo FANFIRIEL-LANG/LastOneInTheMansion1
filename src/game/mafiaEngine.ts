@@ -86,9 +86,7 @@ export function previewPrivateNightAction(players: MansionPlayer[], action: Nigh
   if (action.kind === "investigate") {
     const target = players.find((player) => player.id === action.targetId && player.alive);
     if (!target) throw new Error("Неизвестная цель расследования.");
-    return MANSION_ROLES[target.roleId].faction === "cult"
-      ? "Следы указывают на связь с культом."
-      : "Ты не находишь признаков принадлежности к культу.";
+    return "Ты замечаешь неоднозначные следы. Они могут помочь расследованию, но не доказывают виновность.";
   }
   if (action.kind === "cult-select") return "Твой выбор принят. Остальные культисты не увидят, кого выбрал именно ты.";
   if (action.kind === "protect" || action.kind === "ward") return "Защита установлена. Теперь передай телефон дальше.";
@@ -126,9 +124,11 @@ export function resolveNight(players: MansionPlayer[], actions: NightAction[], r
 
   for (const action of actions.filter((item) => item.kind === "investigate")) {
     const target = living.find((player) => player.id === action.targetId)!;
-    privateResults[action.actorId] = MANSION_ROLES[target.roleId].faction === "cult"
-      ? "Следы указывают на связь с культом."
-      : "Ты не находишь признаков принадлежности к культу.";
+    const isCult = MANSION_ROLES[target.roleId].faction === "cult";
+    const suspiciousTrace = randomChance(isCult ? 0.65 : 0.35);
+    privateResults[action.actorId] = suspiciousTrace
+      ? "Ты замечаешь странные следы. Они могут быть связаны с ритуалом, но не доказывают виновность."
+      : "Ты не находишь убедительных следов. Это не доказывает невиновность цели.";
   }
 
   const choiceCounts = new Map<string, number>();
@@ -209,4 +209,13 @@ function secureShuffle<T>(items: T[]): T[] {
     }
   }
   return result;
+}
+
+function randomChance(probability: number): boolean {
+  if (globalThis.crypto?.getRandomValues) {
+    const value = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(value);
+    return value[0] / 0x1_0000_0000 < probability;
+  }
+  return Math.random() < probability;
 }
