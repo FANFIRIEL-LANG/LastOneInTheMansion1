@@ -79,7 +79,7 @@ export function createMansionPlayers(names: string[]): MansionPlayer[] {
   }));
 }
 
-export function resolveNight(players: MansionPlayer[], actions: NightAction[], ritualProgress: number): NightResolution {
+export function resolveNight(players: MansionPlayer[], actions: NightAction[], ritualProgress: number, publicProtectionTargetId: string | null = null): NightResolution {
   const living = players.filter((player) => player.alive);
   if (actions.length !== living.length) throw new Error("Каждый живой игрок должен получить приватный ночной ход.");
   const byActor = new Map(actions.map((action) => [action.actorId, action]));
@@ -105,6 +105,7 @@ export function resolveNight(players: MansionPlayer[], actions: NightAction[], r
 
   const cultChoices = actions.filter((action) => action.kind === "cult-select").map((action) => action.targetId!);
   const protections = new Set(actions.filter((action) => action.kind === "protect" || action.kind === "ward").map((action) => action.targetId!));
+  if (publicProtectionTargetId) protections.add(publicProtectionTargetId);
   const privateResults: Record<string, string> = {};
 
   for (const action of actions.filter((item) => item.kind === "investigate")) {
