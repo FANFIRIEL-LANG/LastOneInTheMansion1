@@ -4,7 +4,7 @@ on:
     branches: [main]
   workflow_dispatch:
   push:
-    branches: [main, fix/ios-secret-screen-lifecycle]
+    branches: [main, fix/ios-secret-screen-lifecycle, build/unsigned-iphone-ipa]
     tags: ["v*"]
 permissions:
   contents: read
