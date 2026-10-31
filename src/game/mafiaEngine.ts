@@ -1,6 +1,6 @@
 export type MansionFaction = "guests" | "cult";
 export type MansionRoleId = "cultist" | "acolyte" | "detective" | "doctor" | "medium" | "guardian" | "resident";
-export type NightActionKind = "cult-select" | "investigate" | "protect" | "ward" | "commune" | "pass";
+export type NightActionKind = "cult-select" | "investigate" | "protect" | "ward" | "commune" | "listen" | "pass";
 
 export interface MansionRole {
   id: MansionRoleId;
@@ -18,7 +18,7 @@ export const MANSION_ROLES: Record<MansionRoleId, MansionRole> = {
   doctor: { id: "doctor", name: "Доктор", faction: "guests", nightAction: "protect", description: "Ты можешь защитить одного гостя от ночного нападения.", objective: "Сохрани жизни и не дай культу ослабить группу." },
   medium: { id: "medium", name: "Медиум", faction: "guests", nightAction: "commune", description: "Ты получаешь неполные послания от духов особняка.", objective: "Соедини обрывки посланий и помоги раскрыть правду." },
   guardian: { id: "guardian", name: "Хранитель", faction: "guests", nightAction: "ward", description: "Ты можешь поставить защиту на одного игрока.", objective: "Предугадывай опасность и защищай тех, кто важен для расследования." },
-  resident: { id: "resident", name: "Житель", faction: "guests", nightAction: "pass", description: "У тебя нет ночной способности, но ты участвуешь во всех общих действиях.", objective: "Используй публичные действия, личное задание и обсуждение, чтобы найти культ." }
+  resident: { id: "resident", name: "Житель", faction: "guests", nightAction: "listen", description: "У тебя нет ночной способности, но ты участвуешь во всех общих действиях.", objective: "Используй публичные действия, личное задание и обсуждение, чтобы найти культ." }
 };
 
 export interface MansionPlayer {
@@ -93,7 +93,7 @@ export function resolveNight(players: MansionPlayer[], actions: NightAction[], r
     if (MANSION_ROLES[actor.roleId].nightAction !== action.kind) {
       throw new Error(`Роль игрока ${actor.name} не может выполнить это ночное действие.`);
     }
-    if (action.kind !== "pass" && action.kind !== "commune") {
+    if (action.kind !== "pass" && action.kind !== "commune" && action.kind !== "listen") {
       const target = living.find((player) => player.id === action.targetId);
       const mayTargetSelf = action.kind === "protect" || action.kind === "ward";
       if (!target || (target.id === actor.id && !mayTargetSelf)) throw new Error("Нужно выбрать другого живого игрока.");
@@ -113,6 +113,14 @@ export function resolveNight(players: MansionPlayer[], actions: NightAction[], r
     privateResults[action.actorId] = MANSION_ROLES[target.roleId].faction === "cult"
       ? "Следы указывают на связь с культом."
       : "Ты не находишь признаков принадлежности к культу.";
+  }
+
+  for (const action of actions.filter((item) => item.kind === "listen")) {
+    privateResults[action.actorId] = ritualProgress >= 3
+      ? "Ты слышишь почти непрерывный шёпот. Ритуал близок к завершению."
+      : ritualProgress > 0
+        ? "Из-под пола доносится ритмичный шёпот. Ритуал уже начался."
+        : "Особняк затих. Пока ты не слышишь признаков начавшегося ритуала.";
   }
 
   for (const action of actions.filter((item) => item.kind === "commune")) {
