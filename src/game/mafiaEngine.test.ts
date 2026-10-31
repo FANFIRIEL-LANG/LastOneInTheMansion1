@@ -107,7 +107,7 @@ describe("private night resolution", () => {
       { actorId: "p3", kind: "investigate", targetId: "p1" },
       { actorId: "p4", kind: "protect", targetId: "p5" },
       { actorId: "p5", kind: "commune" },
-      { actorId: "p6", kind: "ward", targetId: "p6" }
+      { actorId: "p6", kind: "ward", targetId: "p3" }
     ];
     const result = resolveNight(players, actions, 0);
     expect(result.attackedPlayerId).toBeNull();
