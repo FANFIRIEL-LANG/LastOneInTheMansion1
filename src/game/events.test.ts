@@ -7,7 +7,7 @@ const players: MansionPlayer[] = [
   { id: "p1", name: "A", roleId: "detective", alive: true, wounds: 0, ghostVoteAvailable: false },
   { id: "p2", name: "B", roleId: "cultist", alive: true, wounds: 0, ghostVoteAvailable: false },
   { id: "p3", name: "C", roleId: "doctor", alive: true, wounds: 0, ghostVoteAvailable: false },
-  { id: "p4", name: "D", roleId: "medium", alive: true, wounds: 0, ghostVoteAvailable: false }
+  { id: "p4", name: "D", roleId: "resident", alive: true, wounds: 0, ghostVoteAvailable: false }
 ];
 const clues: EvidenceCard[] = [
   { id: "r1", title: "Пепельный знак", description: "Знак на камне.", room: "library", kind: "ritual", isFalseLead: false },
@@ -54,11 +54,12 @@ describe("Mansion events", () => {
     expect(result.state.clueDeck).toEqual([clues[1]]);
   });
 
-  it("gives the medium a private omen without exposing it publicly", () => {
+  it("reveals the portrait clue publicly without granting a special role private information", () => {
     const result = resolveMansionEvent(players, createDayState(clues, 3), MANSION_EVENT_DECK[2], {
       p1: "listen-portrait", p2: "listen-portrait", p3: "listen-portrait", p4: "burn-portrait"
     });
-    expect(result.privateResults.p4).toContain("почти завершён");
-    expect(result.publicMessage).not.toContain("почти завершён");
+    expect(result.privateResults).toEqual({});
+    expect(result.state.publicEvidence).toHaveLength(1);
+    expect(result.publicMessage).toContain("улика");
   });
 });
