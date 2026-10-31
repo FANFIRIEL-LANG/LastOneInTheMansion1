@@ -64,6 +64,14 @@ describe("public day actions", () => {
     expect(result.message).toContain("защищён");
   });
 
+  it("allows one first-aid action per day and heals one wound", () => {
+    const wounded = players.map((player) => player.id === "p2" ? { ...player, wounds: 1 } : player);
+    const result = resolvePublicAction(wounded, createDayState(clues), "p1", { type: "treat-player", targetId: "p2" });
+    expect(result.healedPlayerId).toBe("p2");
+    expect(result.state.publicTreatedPlayerId).toBe("p2");
+    expect(() => resolvePublicAction(wounded, result.state, "p3", { type: "treat-player", targetId: "p2" })).toThrow();
+  });
+
   it("records accusations for the trial", () => {
     const result = resolvePublicAction(players, createDayState(clues), "p1", { type: "accuse", targetId: "p2" });
     expect(result.state.nominations).toEqual(["p2"]);
