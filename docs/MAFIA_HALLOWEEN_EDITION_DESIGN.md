@@ -41,7 +41,7 @@ Role abilities:
 - **Doctor:** privately protects one player from one fear/wound that night; cannot protect the same target on consecutive nights.
 - **Medium:** privately receives one atmospheric clue about a ghost or a night event; clues are intentionally incomplete.
 - **Guardian:** privately protects one room or one player according to the chosen balance configuration.
-- **Resident:** no special night power, but receives a personal secret objective and participates in every public action.
+- **Resident:** privately listens to the house and receives an incomplete clue about ritual activity; also receives a personal secret objective.
 
 The initial role roster is a balancing proposal. Do not hard-code role assumptions into UI components; use role metadata and a role registry.
 
@@ -89,7 +89,7 @@ The app should show the active player and their available actions, then show the
 - The phone is passed in the same player order every night.
 - Every player gets the same neutral handoff and confirmation pattern.
 - Active roles select a target or action privately.
-- Players with no ability get a neutral no-action screen of equivalent length.
+- Every living role has a meaningful private action. Ghosts still receive the same neutral pass screen, so no one can infer role from who gets a turn.
 - Cult members privately choose a single target. If cult choices tie, the cult attack fails.
 - Doctor/Guardian protection is resolved before the attack.
 - Detective gets a private faction clue.
