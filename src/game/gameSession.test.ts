@@ -53,7 +53,7 @@ describe("Mafia game session state machine", () => {
       session = submitDayAction(session, actor.id, { type: "interrogate", targetId: target.id, question: "Что произошло?" });
     }
     const cult = session.players.find((player) => MANSION_ROLES[player.roleId].faction === "cult")!;
-    const votes = Object.fromEntries(session.players.map((player) => [player.id, player.id === cult.id ? session.players.find((p) => p.id !== cult.id)!.id : cult.id]));
+    const votes = Object.fromEntries(session.players.map((player, index) => [player.id, session.players[(index + 1) % session.players.length].id]));
     session = submitTrialVotes(session, votes);
     expect(session.phase).toBe("night");
     expect(activeNightPlayer(session)).not.toBeNull();
@@ -67,7 +67,7 @@ describe("Mafia game session state machine", () => {
       session = submitDayAction(session, actor.id, { type: "interrogate", targetId: target.id, question: "Что ты видел?" });
     }
     const cult = session.players.find((player) => MANSION_ROLES[player.roleId].faction === "cult")!;
-    const votes = Object.fromEntries(session.players.map((player) => [player.id, player.id === cult.id ? session.players.find((p) => p.id !== cult.id)!.id : cult.id]));
+    const votes = Object.fromEntries(session.players.map((player, index) => [player.id, session.players[(index + 1) % session.players.length].id]));
     session = submitTrialVotes(session, votes);
     const order = [...session.nightTurnOrder];
     for (const id of order) {
