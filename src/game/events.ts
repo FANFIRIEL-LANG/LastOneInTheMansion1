@@ -128,10 +128,14 @@ export function resolveMansionEvent(
     }
     case "medium-omen": {
       const medium = eligible.find((player) => player.roleId === "medium");
-      if (medium) privateResults[medium.id] = next.ritualProgress >= 3
-        ? "Портрет шепчет: ритуал почти завершён."
-        : "Портрет шепчет о движении под фундаментом.";
-      publicMessage = "Портрет замолкает. Только медиум смог разобрать его шёпот.";
+      if (medium) {
+        privateResults[medium.id] = next.ritualProgress >= 3
+          ? "Портрет шепчет: ритуал почти завершён."
+          : "Портрет шепчет о движении под фундаментом.";
+        publicMessage = "Портрет замолкает. Медиуму удалось разобрать его шёпот.";
+      } else {
+        publicMessage = "Портрет замолкает. Никто не смог разобрать его шёпот.";
+      }
       break;
     }
     case "burn-clue":
