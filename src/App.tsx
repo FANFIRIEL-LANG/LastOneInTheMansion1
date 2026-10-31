@@ -17,6 +17,7 @@ import { MANSION_ROLES, type MansionPlayer, type NightAction } from "./game/mafi
 import { type MansionEventChoiceId } from "./game/events";
 import type { EvidenceCard, MansionRoom, PublicAction } from "./game/dayActions";
 import { shouldConcealSecretRole } from "./game/privacyLifecycle";
+import { playNarratorClip, stopNarrator, type NarratorClipId } from "./game/narratorAudio";
 
 type Screen = "home" | "setup" | "roles" | "intro" | "game";
 type PrivateStep = "handoff" | "ready" | "secret";
@@ -43,14 +44,10 @@ const ROOMS: { id: MansionRoom; label: string }[] = [
   { id: "basement", label: "Подвал" }
 ];
 
-function speak(text: string, enabled: boolean) {
-  if (!enabled || !("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "ru-RU";
-  utterance.rate = 0.92;
-  utterance.pitch = 0.86;
-  window.speechSynthesis.speak(utterance);
+function eventClipId(eventId: string): NarratorClipId {
+  if (eventId === "blood-moon") return "narrator_event_blood_moon";
+  if (eventId === "locked-basement") return "narrator_event_basement";
+  return "narrator_event_portrait";
 }
 
 export default function App() {
@@ -95,7 +92,7 @@ export default function App() {
       if (!shouldConcealSecretRole(screen === "roles" || screen === "game" ? (privateVisible ? "secret" : "ready") : screen, eventName, document.visibilityState)) return;
       setPrivateVisible(false);
       if (screen === "roles") setPrivateStep("ready");
-      window.speechSynthesis?.cancel();
+      stopNarrator();
     };
     const visibility = () => conceal("visibilitychange");
     const blur = () => conceal("blur");
@@ -148,14 +145,14 @@ export default function App() {
       return;
     }
     setScreen("intro");
-    speak("Добро пожаловать в особняк. Один из вас служит культу. Обсуждайте вслух, сомневайтесь, ищите улики. Но помните: не всякая правда безопасна.", speechEnabled);
+    playNarratorClip("narrator_welcome", speechEnabled);
   }
 
   function beginDay() {
     setScreen("game");
     setPrivateStep("handoff");
     setPrivateVisible(false);
-    speak(`День ${session?.day ?? 1}. Каждый живой игрок совершит одно публичное действие. Обсуждайте всё вслух.`, speechEnabled);
+    playNarratorClip("narrator_day_start", speechEnabled);
   }
 
   function submitAction(action: PublicAction) {
@@ -172,7 +169,7 @@ export default function App() {
       setTargetId("");
       setEvidenceId("");
       setError("");
-      speak(next.lastPublicMessage, speechEnabled);
+      if (next.phase === "event" && next.currentEvent) playNarratorClip(eventClipId(next.currentEvent.id), speechEnabled);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Действие не принято.");
     }
@@ -196,7 +193,8 @@ export default function App() {
       setEventVoterIndex(0);
       setPrivateStep("handoff");
       setError("");
-      speak(next.lastPublicMessage, speechEnabled);
+      if (next.phase === "trial") playNarratorClip("narrator_trial", speechEnabled);
+      else if (next.phase === "ending") playNarratorClip(next.winner === "guests" ? "narrator_guests_win" : "narrator_cult_win", speechEnabled);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Голоса события не приняты.");
     }
@@ -220,7 +218,8 @@ export default function App() {
       setTrialVoterIndex(0);
       setPrivateStep("handoff");
       setError("");
-      speak(next.lastPublicMessage, speechEnabled);
+      if (next.phase === "night") playNarratorClip("narrator_night", speechEnabled);
+      else if (next.phase === "ending") playNarratorClip(next.winner === "guests" ? "narrator_guests_win" : "narrator_cult_win", speechEnabled);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Голосование не принято.");
     }
@@ -236,7 +235,7 @@ export default function App() {
       setPrivateVisible(false);
       setNightTargetId("");
       setError("");
-      if (next.phase === "ending") speak("Рассвет принёс окончательный ответ. Игра завершена.", speechEnabled);
+      if (next.phase === "ending") playNarratorClip(next.winner === "guests" ? "narrator_guests_win" : "narrator_cult_win", speechEnabled);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Ночное действие не принято.");
     }
@@ -255,13 +254,14 @@ export default function App() {
       setPrivateVisible(false);
       setPrivateStep("handoff");
       setError("");
+      if (next.phase === "day-actions") playNarratorClip("narrator_day_start", speechEnabled);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Не удалось закрыть личную подсказку.");
     }
   }
 
   function reset() {
-    window.speechSynthesis?.cancel();
+    stopNarrator();
     setSession(null);
     setScreen("home");
     setError("");
@@ -305,7 +305,7 @@ export default function App() {
       <button className="brand" onClick={() => screen === "home" ? undefined : reset()} aria-label="На главную">
         <span className="brand-mark"><Moon size={17}/></span><span>THE MANOR <small>HALLOWEEN GAME</small></span>
       </button>
-      <button className="icon-button" onClick={() => setSpeechEnabled((value) => { if (value) window.speechSynthesis?.cancel(); return !value; })} aria-label={speechEnabled ? "Выключить озвучку" : "Включить озвучку"}>
+      <button className="icon-button" onClick={() => setSpeechEnabled((value) => { if (value) stopNarrator(); return !value; })} aria-label={speechEnabled ? "Выключить озвучку" : "Включить озвучку"}>
         {speechEnabled ? <Volume2 size={18}/> : <VolumeX size={18}/>}
       </button>
     </header>
