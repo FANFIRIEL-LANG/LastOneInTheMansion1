@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeDayPlayer, activeNightPlayer, completeEventPrivateReveal, getEligibleVoters, startMansionSession, submitDayAction, submitEventVotes, submitNightAction, submitTrialVotes } from "./gameSession";
+import { activeDayPlayer, activeNightPlayer, activeNightResultPlayer, completeNightResultReveal, completeEventPrivateReveal, getEligibleVoters, startMansionSession, submitDayAction, submitEventVotes, submitNightAction, submitTrialVotes } from "./gameSession";
 import type { EvidenceCard } from "./dayActions";
 import { MANSION_ROLES } from "./mafiaEngine";
 
@@ -74,7 +74,7 @@ describe("Mafia game session state machine", () => {
     expect(activeNightPlayer(session)).not.toBeNull();
   });
 
-  it("runs the same private night turn order for every player, including a neutral resident turn", () => {
+  it("runs the same private night turn order and delivers private results before dawn", () => {
     let session = startMansionSession(["A", "B", "C", "D"], deck);
     while (session.phase === "day-actions") {
       const actor = activeDayPlayer(session)!;
@@ -99,8 +99,51 @@ describe("Mafia game session state machine", () => {
       }
       session = submitNightAction(session, { actorId: actor.id, kind, ...(kind !== "pass" ? { targetId: target!.id } : {}) });
     }
+    if (session.phase === "night-results") {
+      while (session.phase === "night-results") {
+        const resultPlayer = activeNightResultPlayer(session)!;
+        expect(session.lastNight?.privateResults[resultPlayer.id]).toBeTruthy();
+        session = completeNightResultReveal(session, resultPlayer.id);
+      }
+    }
     expect(session.phase === "day-actions" || session.phase === "ending").toBe(true);
     expect(session.day === 1 || session.day === 2).toBe(true);
     expect(getEligibleVoters(session.players).length).toBeGreaterThan(0);
   });
 });
+
+  it("preserves private evidence when the next day begins", () => {
+    let session = startMansionSession(["A", "B", "C", "D"], deck);
+    const actor = activeDayPlayer(session)!;
+    session = submitDayAction(session, actor.id, { type: "search-room", room: "library" });
+    const privateClue = session.dayState.privateEvidence[actor.id]?.[0];
+    expect(privateClue).toBeTruthy();
+    while (session.phase === "day-actions") {
+      const nextActor = activeDayPlayer(session)!;
+      if (nextActor.id === actor.id) break;
+      const target = session.players.find((player) => player.alive && player.id !== nextActor.id)!;
+      session = submitDayAction(session, nextActor.id, { type: "interrogate", targetId: target.id, question: "Что ты видел?" });
+    }
+    if (session.phase === "event" && session.currentEvent) {
+      const choice = session.currentEvent.defaultChoiceId;
+      const votes = Object.fromEntries(session.players.filter((player) => player.alive).map((player) => [player.id, choice]));
+      session = submitEventVotes(session, votes);
+    }
+    if (session.phase === "trial") {
+      const votes = Object.fromEntries(session.players.map((player, index) => [player.id, session.players[(index + 1) % session.players.length].id]));
+      session = submitTrialVotes(session, votes);
+      while (session.phase === "night") {
+        const nightActor = activeNightPlayer(session)!;
+        const target = session.players.find((player) => player.alive && player.id !== nightActor.id);
+        const kind = MANSION_ROLES[nightActor.roleId].nightAction;
+        session = submitNightAction(session, { actorId: nightActor.id, kind, ...(kind !== "pass" ? { targetId: target!.id } : {}) });
+      }
+      while (session.phase === "night-results") {
+        const resultPlayer = activeNightResultPlayer(session)!;
+        session = completeNightResultReveal(session, resultPlayer.id);
+      }
+    }
+    if (session.phase === "day-actions" && session.day === 2) {
+      expect(session.dayState.privateEvidence[actor.id]).toEqual([privateClue]);
+    }
+  });
