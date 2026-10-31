@@ -3,6 +3,7 @@ import {
   createMansionPlayers,
   getMansionVictory,
   MANSION_ROLES,
+  previewPrivateNightAction,
   resolveNight,
   resolveVote,
   roleSetForPlayerCount,
@@ -42,6 +43,21 @@ describe("Mafia Halloween role balance", () => {
   it("rejects unsupported player counts", () => {
     expect(() => roleSetForPlayerCount(3)).toThrow();
     expect(() => roleSetForPlayerCount(8)).toThrow();
+  });
+});
+
+describe("private night action previews", () => {
+  it("returns investigation information only to the current player's private screen", () => {
+    const players = playersFor(["cultist", "detective", "doctor", "resident"]);
+    const result = previewPrivateNightAction(players, { actorId: "p2", kind: "investigate", targetId: "p1" }, 0);
+    expect(result).toContain("культом");
+  });
+
+  it("never needs to put private role results into public narration", () => {
+    const players = playersFor(["cultist", "detective", "doctor", "resident"]);
+    const result = previewPrivateNightAction(players, { actorId: "p4", kind: "listen" }, 1);
+    expect(result).toContain("ритуал уже начался");
+    expect(result).not.toContain("Культист");
   });
 });
 
