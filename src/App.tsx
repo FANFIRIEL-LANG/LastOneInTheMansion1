@@ -6,8 +6,6 @@ import type { Player } from "./game/types";
 import { concealRole, confirmPhoneReceived, hideAndPass, revealRole, startRoleFlow, type TransferState } from "./game/transfer";
 
 type Screen = "home" | "setup" | "handoff" | "ready" | "secret" | "intro" | "round" | "vote" | "ending";
-const STORAGE_KEY = "last-one-mansion-v1";
-
 function speak(text: string, enabled: boolean) {
   if (!enabled || !("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
@@ -40,6 +38,7 @@ export default function App() {
   useEffect(() => {
     const hideOnBackground = () => {
       if (document.visibilityState !== "visible" && screen === "secret") {
+        window.speechSynthesis?.cancel();
         setShowRoleDetails(false);
         setScreen("ready");
         setTransfer((state) => concealRole(state));
@@ -48,11 +47,6 @@ export default function App() {
     document.addEventListener("visibilitychange", hideOnBackground);
     return () => document.removeEventListener("visibilitychange", hideOnBackground);
   }, [screen, players.length]);
-
-  useEffect(() => {
-    const payload = { players: players.map(({ id, name }) => ({ id, name })), roundIndex };
-    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch { /* Storage may be unavailable in private browsing. */ }
-  }, [players, roundIndex]);
 
   function beginSetup() {
     setNames(["Игрок 1", "Игрок 2", "Игрок 3", "Игрок 4", "Игрок 5"]);
@@ -97,13 +91,13 @@ export default function App() {
     setTransfer(next);
     if (next.stage === "next") {
       setScreen("intro");
-      speak(INTRO[0].text, speechEnabled);
+      speak(INTRO.map((beat) => beat.title + ". " + beat.text).join(" "), speechEnabled);
     } else setScreen("handoff");
   }
 
   function beginRound() {
     setScreen("round");
-    speak(round.prompt, speechEnabled);
+    speak(round.title + ". " + round.prompt, speechEnabled);
   }
 
   function completeRound() {
@@ -111,7 +105,7 @@ export default function App() {
       const nextIndex = roundIndex + 1;
       setRoundIndex(nextIndex);
       setScreen("round");
-      speak(ROUNDS[nextIndex].prompt, speechEnabled);
+      speak(ROUNDS[nextIndex].title + ". " + ROUNDS[nextIndex].prompt, speechEnabled);
       return;
     }
     setVotes({});
@@ -121,6 +115,7 @@ export default function App() {
   }
 
   function submitVote(voterId: string, suspectId: string) {
+    if (!suspectId || votes[voterId] || !players.some((player) => player.id === suspectId)) return;
     const next = { ...votes, [voterId]: suspectId };
     setVotes(next);
     if (Object.keys(next).length >= players.length) setScreen("ending");
@@ -135,6 +130,9 @@ export default function App() {
   }
 
   const roleColor = currentPlayer?.role.team === "entity" ? "danger" : "warm";
+  const possessed = players.find((player) => player.role.team === "entity");
+  const possessedVotes = possessed ? Object.values(votes).filter((id) => id === possessed.id).length : 0;
+  const guestsWon = possessedVotes >= Math.floor(players.length / 2) + 1;
 
   return (
     <main className="app-shell">
@@ -143,7 +141,10 @@ export default function App() {
         <button className="brand" onClick={() => screen === "home" ? undefined : reset()} aria-label="На главную">
           <span className="brand-mark"><Moon size={17} /></span><span>THE MANOR <small>HALLOWEEN GAME</small></span>
         </button>
-        <button className="icon-button" onClick={() => setSpeechEnabled((value) => !value)} aria-label={speechEnabled ? "Выключить озвучку" : "Включить озвучку"}>
+        <button className="icon-button" onClick={() => setSpeechEnabled((value) => {
+          if (value) window.speechSynthesis?.cancel();
+          return !value;
+        })} aria-label={speechEnabled ? "Выключить озвучку" : "Включить озвучку"}>
           {speechEnabled ? <Volume2 size={18}/> : <VolumeX size={18}/>}
         </button>
       </header>
@@ -214,21 +215,20 @@ export default function App() {
         <p className="round-prompt">{round.prompt}</p>
         <div className="choice-list">{round.choices.map((choice, index) => <div className="choice" key={choice}><span>{index + 1}</span>{choice}</div>)}</div>
         <div className="host-line"><AudioLines size={17}/><span>Ведущий озвучит событие. Обсудите решение вслух.</span></div>
-        <button className="primary-button full" onClick={completeRound}>Перейти к голосованию <ChevronRight size={18}/></button>
+        <button className="primary-button full" onClick={completeRound}>{roundIndex + 1 < ROUNDS.length ? "Следующее событие" : "Начать голосование"} <ChevronRight size={18}/></button>
       </section>}
 
       {screen === "vote" && <section className="panel narrative screen-enter">
         <div className="section-mark"><EyeOff size={23}/></div><p className="eyebrow">ОБСУЖДЕНИЕ · ТАЙНОЕ ГОЛОСОВАНИЕ</p><h2>Кому ты<br/><em>не доверяешь?</em></h2>
         <p className="muted">Передавайте телефон по кругу. Каждый выбирает подозреваемого, не показывая свой выбор остальным.</p>
         {players[voterIndex] && <div className="vote-row"><strong>{players[voterIndex].name}</strong><select key={players[voterIndex].id} defaultValue="" onChange={(event) => submitVote(players[voterIndex].id, event.target.value)} aria-label={`Голос игрока ${players[voterIndex].name}`}><option value="" disabled>Выбрать подозреваемого</option>{players.filter((candidate) => candidate.id !== players[voterIndex].id).map((candidate) => <option value={candidate.id} key={candidate.id}>{candidate.name}</option>)}</select></div>}
-        {voterIndex > 0 && <p className="microcopy">Голоса приняты: {voterIndex}/{players.length}. Передайте телефон следующему игроку.</p>}
         <p className="microcopy">Голоса приняты: {Object.keys(votes).length}/{players.length}. Передайте телефон следующему игроку.</p>
       </section>}
 
       {screen === "ending" && <section className="panel narrative screen-enter">
         <div className="section-mark"><Skull size={24}/></div><p className="eyebrow">РАССВЕТ БЛИЗКО</p><h2>Кто пережил<br/><em>эту ночь?</em></h2>
         <div className="results">{players.map((player) => <div className="result-row" key={player.id}><span>{player.name}</span><strong>{player.role.name}</strong><small>{voteCounts[player.id] || 0} голосов</small></div>)}</div>
-        <p className="ending-copy">{players.find((player) => player.role.team === "entity" && Object.values(votes).filter((id) => id === player.id).length < Math.ceil(players.length / 2)) ? "Одержимый растворяется в тумане. Особняк снова ждёт гостей…" : "С первыми лучами солнца дверь особняка открывается. Но на портрете появляется новое лицо…"}</p>
+        <p className="ending-copy">{guestsWon ? "Гости вычислили одержимого! С первыми лучами солнца двери особняка распахиваются." : "Одержимый пережил голосование. Особняк снова ждёт новых гостей…"}</p>
         <button className="primary-button full" onClick={reset}>Сыграть снова <ChevronRight size={18}/></button>
       </section>}
 
