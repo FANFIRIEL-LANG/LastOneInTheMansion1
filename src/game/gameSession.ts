@@ -139,6 +139,10 @@ export function completeEventPrivateReveal(session: MansionSession, playerId: st
 
 export function submitTrialVotes(session: MansionSession, votes: Record<string, string>): MansionSession {
   if (session.phase !== "trial") throw new Error("Сейчас не время голосования.");
+  const nominated = session.dayState.nominations;
+  if (nominated.length >= 2 && Object.values(votes).some((targetId) => !nominated.includes(targetId))) {
+    throw new Error("Голосовать можно только за игроков, выдвинутых на суд.");
+  }
   const result = resolveVote(session.players, votes);
   const winner = getMansionVictory(result.players, session.ritualProgress);
   if (winner) {
