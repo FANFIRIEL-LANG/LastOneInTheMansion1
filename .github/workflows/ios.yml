@@ -2,6 +2,7 @@ name: iOS project build
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     tags: ["v*"]
 permissions:
   contents: read
