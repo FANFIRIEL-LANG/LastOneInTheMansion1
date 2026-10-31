@@ -89,17 +89,15 @@ describe("Mafia game session state machine", () => {
       const actor = activeNightPlayer(session)!;
       expect(actor.id).toBe(id);
       const target = session.players.find((player) => player.alive && player.id !== actor.id);
-      let kind: "cult-select" | "investigate" | "protect" | "ward" | "commune" | "listen" | "pass";
+      let kind: "cult-select" | "investigate" | "protect" | "ward" | "pass";
       switch (MANSION_ROLES[actor.roleId].nightAction) {
         case "cult-select": kind = "cult-select"; break;
         case "investigate": kind = "investigate"; break;
         case "protect": kind = "protect"; break;
         case "ward": kind = "ward"; break;
-        case "commune": kind = "commune"; break;
-        case "listen": kind = "listen"; break;
         default: kind = "pass";
       }
-      session = submitNightAction(session, { actorId: actor.id, kind, ...(kind !== "pass" && kind !== "commune" && kind !== "listen" ? { targetId: target!.id } : {}) });
+      session = submitNightAction(session, { actorId: actor.id, kind, ...(kind !== "pass" ? { targetId: target!.id } : {}) });
     }
     expect(session.phase === "day-actions" || session.phase === "ending").toBe(true);
     expect(session.day === 1 || session.day === 2).toBe(true);
