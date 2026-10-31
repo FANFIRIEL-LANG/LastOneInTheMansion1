@@ -24,7 +24,7 @@ npx cap sync ios
 npx cap open ios
 ```
 
-GitHub Actions собирает web/PWA и архив iOS-проекта. Для подписанного IPA потребуются защищённые GitHub Actions Secrets с Apple Distribution certificate (.p12), паролем сертификата и provisioning profile. Не добавляйте сертификаты, ключи или пароли в репозиторий.
+GitHub Actions проверяет web/PWA и собирает приложение для iOS Simulator. Это тестовая сборка `.app`, не подписанный IPA. Для подписанного IPA потребуются защищённые GitHub Actions Secrets с Apple Distribution certificate (.p12), паролем сертификата и provisioning profile. Не добавляйте сертификаты, ключи или пароли в репозиторий.
 
 ## Приватность ролей
 
