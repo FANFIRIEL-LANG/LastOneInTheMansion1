@@ -81,7 +81,7 @@ export function submitDayAction(session: MansionSession, actorId: string, action
   const actor = activeDayPlayer(session);
   if (!actor || actor.id !== actorId) throw new Error("Сейчас ход другого игрока.");
   const result = resolvePublicAction(session.players, session.dayState, actorId, action);
-  const next: MansionSession = { ...session, dayState: result.state, lastPublicMessage: result.message };
+  const next: MansionSession = { ...session, dayState: result.state, lastPublicMessage: result.message, ...(result.healedPlayerId ? { players: session.players.map((player) => player.id === result.healedPlayerId ? { ...player, wounds: Math.max(0, player.wounds - 1) } : player) } : {}) };
   if (!activeDayPlayer(next)) {
     const drawn = drawNextEvent(next.eventDeck);
     next.phase = "event";
