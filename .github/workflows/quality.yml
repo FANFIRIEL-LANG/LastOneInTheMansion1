@@ -1,7 +1,7 @@
 name: Test and build
 on:
   push:
-    branches: [main]
+    branches: [main, fix/ios-secret-screen-lifecycle]
   pull_request:
     branches: [main]
   workflow_dispatch:
