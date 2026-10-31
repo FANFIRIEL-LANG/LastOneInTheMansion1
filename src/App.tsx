@@ -386,7 +386,7 @@ export default function App() {
       <section className="panel narrative screen-enter">
         <div className="round-counter">ДЕНЬ {session.day} <span>·</span> {session.phase === "day-actions" ? "ПУБЛИЧНЫЕ ДЕЙСТВИЯ" : session.phase === "event" ? "СОБЫТИЕ" : session.phase === "trial" ? "ТАЙНОЕ ГОЛОСОВАНИЕ" : session.phase === "night" ? "НОЧЬ" : session.phase === "night-results" ? "ЛИЧНЫЕ РЕЗУЛЬТАТЫ" : session.phase === "event-private" ? "ЛИЧНАЯ ПОДСКАЗКА" : "ИТОГ"}</div>
         <div className="section-mark"><Sparkles size={23}/></div>
-        <p className="eyebrow">ОСОБНЯК · РИТУАЛ {session.ritualProgress}/5</p>
+        <p className="eyebrow">ОСОБНЯК · РИТУАЛ {session.ritualProgress}/7</p>
         <div className="player-status">{players.map((player) => <span className={player.alive ? "status-alive" : "status-ghost"} key={player.id}>{player.name}{player.alive ? (player.wounds > 0 ? ` · рана ${player.wounds}/2` : "") : " · призрак"}</span>)}</div>
         {session.lastPublicMessage && <p className="round-prompt">{session.lastPublicMessage}</p>}
       </section>
@@ -402,7 +402,7 @@ export default function App() {
       {session.phase === "day-actions" && dayActor && !pendingClue && <>
         {privateStep === "handoff" ? renderHandoff(dayActor, `ПУБЛИЧНЫЙ ХОД · ${session.dayState.actionsUsed.length + 1}/${living.length}`, () => setPrivateStep("ready")) : <section className="panel narrative screen-enter">
           <p className="eyebrow">ХОД ИГРОКА</p><h2>{dayActor.name}</h2>
-          <p className="muted">Выбери одно действие. После этого можно обсуждать результат всей группой.</p>
+          <p className="muted">У тебя два действия за день. Можно искать улики, допрашивать, защищать и выдвигать подозреваемых. После каждого хода телефон передаётся дальше.</p>
           <div className="choice-list">{dayActionButtons.map((item) => <button className={`choice ${dayActionType === item.id ? "choice-selected" : ""}`} key={item.id} onClick={() => setDayActionType(item.id)}><span>›</span>{item.label}</button>)}</div>
           {dayActionType === "search-room" && <><label className="muted">Комната</label><select value={room} onChange={(e) => setRoom(e.target.value as MansionRoom)}>{ROOMS.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select><button className="primary-button full" onClick={() => submitAction({ type: "search-room", room })}>Обыскать комнату</button></>}
           {dayActionType === "interrogate" && <><select value={targetId} onChange={(e) => setTargetId(e.target.value)}><option value="">Кого допросить?</option>{living.filter((p) => p.id !== dayActor.id).map((p) => <option value={p.id} key={p.id}>{p.name}</option>)}</select><input value={question} maxLength={180} onChange={(e) => setQuestion(e.target.value)} aria-label="Вопрос игроку"/><button className="primary-button full" disabled={!targetId} onClick={() => submitAction({ type: "interrogate", targetId, question })}>Задать вопрос</button></>}
