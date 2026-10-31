@@ -15,6 +15,9 @@ export function assignRoles(names: string[], includeTrickster = true): Role[] {
   const roles: Role[] = [ROLE_CATALOG.possessed, ROLE_CATALOG.medium, ROLE_CATALOG.skeptic, ROLE_CATALOG.guardian];
   const optional: RoleId[] = ["detective", "survivor", ...(includeTrickster ? ["trickster" as const] : [])];
   roles.push(...optional.slice(0, names.length - roles.length).map((id) => ROLE_CATALOG[id]));
+  if (roles.length !== names.length) {
+    throw new Error("Недостаточно уникальных ролей для выбранного количества игроков.");
+  }
   return secureShuffle(roles);
 }
 
