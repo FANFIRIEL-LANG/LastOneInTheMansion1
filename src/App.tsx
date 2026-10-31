@@ -5,6 +5,7 @@ import { INTRO, ROUNDS } from "./game/story";
 import type { Player } from "./game/types";
 import { getWinningTeam } from "./game/outcome";
 import { concealRole, confirmPhoneReceived, hideAndPass, revealRole, startRoleFlow, type TransferState } from "./game/transfer";
+import { shouldConcealSecretRole } from "./game/privacyLifecycle";
 
 type Screen = "home" | "setup" | "handoff" | "ready" | "secret" | "intro" | "round" | "vote" | "ending";
 function speak(text: string, enabled: boolean) {
@@ -35,19 +36,28 @@ export default function App() {
     acc[id] = (acc[id] || 0) + 1; return acc;
   }, {}), [votes]);
 
-  // Never leave a secret role visible when iOS backgrounds the app or screen locks.
+  // Conceal private roles on every browser/iOS lifecycle transition that can expose the screen.
   useEffect(() => {
-    const hideOnBackground = () => {
-      if (document.visibilityState !== "visible" && screen === "secret") {
-        window.speechSynthesis?.cancel();
-        setShowRoleDetails(false);
-        setScreen("ready");
-        setTransfer((state) => concealRole(state));
-      }
+    const hideSecret = (event: "visibilitychange" | "blur" | "pagehide") => {
+      if (!shouldConcealSecretRole(screen, event, document.visibilityState)) return;
+      window.speechSynthesis?.cancel();
+      setShowRoleDetails(false);
+      setScreen("ready");
+      setTransfer((state) => concealRole(state));
     };
-    document.addEventListener("visibilitychange", hideOnBackground);
-    return () => document.removeEventListener("visibilitychange", hideOnBackground);
-  }, [screen, players.length]);
+    const onVisibilityChange = () => hideSecret("visibilitychange");
+    const onBlur = () => hideSecret("blur");
+    const onPageHide = () => hideSecret("pagehide");
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, [screen]);
 
   function beginSetup() {
     setNames(["Игрок 1", "Игрок 2", "Игрок 3", "Игрок 4", "Игрок 5"]);

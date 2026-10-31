@@ -1,8 +1,10 @@
 name: iOS project build
 on:
+  pull_request:
+    branches: [main]
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, fix/ios-secret-screen-lifecycle]
     tags: ["v*"]
 permissions:
   contents: read
