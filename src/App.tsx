@@ -25,6 +25,7 @@ export default function App() {
   const [transfer, setTransfer] = useState<TransferState>(startRoleFlow());
   const [roundIndex, setRoundIndex] = useState(0);
   const [votes, setVotes] = useState<Record<string, string>>({});
+  const [voterIndex, setVoterIndex] = useState(0);
   const [speechEnabled, setSpeechEnabled] = useState(true);
   const [showRoleDetails, setShowRoleDetails] = useState(true);
   const [error, setError] = useState("");
@@ -68,6 +69,7 @@ export default function App() {
     setTransfer(startRoleFlow());
     setRoundIndex(0);
     setVotes({});
+    setVoterIndex(0);
     setScreen("handoff");
   }
 
@@ -109,11 +111,10 @@ export default function App() {
   }
 
   function submitVote(voterId: string, suspectId: string) {
-    setVotes((current) => {
-      const next = { ...current, [voterId]: suspectId };
-      if (Object.keys(next).length >= players.length) setScreen("ending");
-      return next;
-    });
+    const next = { ...votes, [voterId]: suspectId };
+    setVotes(next);
+    if (Object.keys(next).length >= players.length) setScreen("ending");
+    else setVoterIndex((index) => index + 1);
   }
 
   function reset() {
@@ -209,8 +210,8 @@ export default function App() {
       {screen === "vote" && <section className="panel narrative screen-enter">
         <div className="section-mark"><EyeOff size={23}/></div><p className="eyebrow">ОБСУЖДЕНИЕ · ТАЙНОЕ ГОЛОСОВАНИЕ</p><h2>Кому ты<br/><em>не доверяешь?</em></h2>
         <p className="muted">Передавайте телефон по кругу. Каждый выбирает подозреваемого, не показывая свой выбор остальным.</p>
-        {players.map((player) => !votes[player.id] && <div className="vote-row" key={player.id}><strong>{player.name}</strong><select defaultValue="" onChange={(event) => submitVote(player.id, event.target.value)} aria-label={`Голос игрока ${player.name}`}><option value="" disabled>Выбрать подозреваемого</option>{players.filter((candidate) => candidate.id !== player.id).map((candidate) => <option value={candidate.id} key={candidate.id}>{candidate.name}</option>)}</select></div>)}
-        {Object.keys(votes).length === players.length && <button className="primary-button full" onClick={() => setScreen("ending")}>Открыть результаты</button>}
+        {players[voterIndex] && <div className="vote-row"><strong>{players[voterIndex].name}</strong><select key={players[voterIndex].id} defaultValue="" onChange={(event) => submitVote(players[voterIndex].id, event.target.value)} aria-label={`Голос игрока ${players[voterIndex].name}`}><option value="" disabled>Выбрать подозреваемого</option>{players.filter((candidate) => candidate.id !== players[voterIndex].id).map((candidate) => <option value={candidate.id} key={candidate.id}>{candidate.name}</option>)}</select></div>}
+        {voterIndex > 0 && <p className="microcopy">Голоса приняты: {voterIndex}/{players.length}. Передайте телефон следующему игроку.</p>}
       </section>}
 
       {screen === "ending" && <section className="panel narrative screen-enter">
