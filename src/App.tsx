@@ -167,13 +167,15 @@ export default function App() {
   function submitAction(action: PublicAction) {
     if (!session || !dayActor) return;
     try {
-      const next = submitDayAction(session, dayActor.id, action);
+      const actorId = dayActor.id;
+      const previousClueIds = new Set((session.dayState.privateEvidence[actorId] ?? []).map((card) => card.id));
+      const next = submitDayAction(session, actorId, action);
       setSession(next);
       setPrivateStep("handoff");
       setPrivateVisible(false);
       if (action.type === "search-room") {
-        const clue = next.dayState.privateEvidence[dayActor.id]?.slice(-1)[0];
-        if (clue) setPendingClue({ playerId: dayActor.id, clue });
+        const clue = (next.dayState.privateEvidence[actorId] ?? []).find((card) => !previousClueIds.has(card.id));
+        if (clue) setPendingClue({ playerId: actorId, clue });
       }
       setTargetId("");
       setEvidenceId("");
@@ -400,14 +402,24 @@ export default function App() {
         {session.lastPublicMessage && <p className="round-prompt">{session.lastPublicMessage}</p>}
       </section>
 
-      {pendingClue && <>
-        {!privateVisible ? renderHandoff(players.find((player) => player.id === pendingClue.playerId)!, "ЛИЧНАЯ УЛИКА · НЕ ПОКАЗЫВАТЬ", () => setPrivateVisible(true)) : <section className="secret-card screen-enter warm">
-          <div className="secret-top"><span className="eyebrow">ТОЛЬКО ДЛЯ ВАШИХ ГЛАЗ</span><span className="classified">PRIVATE</span></div>
-          <p className="eyebrow">УЛИКА НАЙДЕНА</p><h2>{pendingClue.clue.title}</h2><p className="role-description">{pendingClue.clue.description}</p>
-          <p className="microcopy">Комната: {ROOMS.find((item) => item.id === pendingClue.clue.room)?.label}</p>
-          <button className="primary-button full" onClick={() => { setPendingClue(null); setPrivateVisible(false); }}>Скрыть улику и передать телефон <ChevronRight size={18}/></button>
-        </section>}
-      </>}
+      {pendingClue && (() => {
+        const clueOwner = players.find((player) => player.id === pendingClue.playerId);
+        if (!clueOwner) return null;
+        return <>
+          {privateStep === "handoff"
+            ? renderHandoff(clueOwner, "УЛИКА НАЙДЕНА · ТОЛЬКО ДЛЯ ИСКАВШЕГО", () => { setPrivateStep("ready"); setPrivateVisible(false); })
+            : !privateVisible
+              ? renderPrivateReady(clueOwner, "ЛИЧНАЯ УЛИКА · НЕ ПОКАЗЫВАТЬ", () => setPrivateVisible(true))
+              : <section className="secret-card screen-enter warm">
+                  <div className="secret-top"><span className="eyebrow">ТОЛЬКО ДЛЯ ВАШИХ ГЛАЗ</span><span className="classified">PRIVATE</span></div>
+                  <p className="eyebrow">{clueOwner.name.toUpperCase()} · УЛИКА НАЙДЕНА</p>
+                  <h2>{pendingClue.clue.title}</h2>
+                  <p className="role-description">{pendingClue.clue.description}</p>
+                  <p className="microcopy">Комната: {ROOMS.find((item) => item.id === pendingClue.clue.room)?.label}</p>
+                  <button className="primary-button full" onClick={() => { setPendingClue(null); setPrivateVisible(false); setPrivateStep("handoff"); }}>Скрыть улику и передать телефон <ChevronRight size={18}/></button>
+                </section>}
+        </>;
+      })()}
       {session.phase === "day-actions" && dayActor && !pendingClue && <>
         {privateStep === "handoff" ? renderHandoff(dayActor, `ПУБЛИЧНЫЙ ХОД · ${session.dayState.actionsUsed.length + 1}/${living.length * 2}`, () => setPrivateStep("ready")) : <section className="panel narrative screen-enter">
           <p className="eyebrow">ХОД ИГРОКА</p><h2>{dayActor.name}</h2>
