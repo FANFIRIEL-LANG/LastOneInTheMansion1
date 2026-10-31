@@ -66,7 +66,7 @@ export function createDayState(clueDeck: EvidenceCard[], ritualProgress = 0, day
 
 export const ACTIONS_PER_PLAYER_PER_DAY = 2;
 
-/** Each living player gets two different opportunities to influence the day. */
+/** Each living player gets two public actions to influence the day. */
 export function resolvePublicAction(
   players: MansionPlayer[],
   state: DayState,
