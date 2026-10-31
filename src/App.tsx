@@ -1,13 +1,48 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, AudioLines, Check, ChevronRight, DoorOpen, Eye, EyeOff, Ghost, Moon, Shield, Skull, Sparkles, Volume2, VolumeX } from "lucide-react";
-import { assignRoles } from "./game/roles";
-import { INTRO, ROUNDS } from "./game/story";
-import type { Player } from "./game/types";
-import { getWinningTeam } from "./game/outcome";
-import { concealRole, confirmPhoneReceived, hideAndPass, revealRole, startRoleFlow, type TransferState } from "./game/transfer";
+import {
+  activeDayPlayer,
+  activeNightPlayer,
+  activeNightResultPlayer,
+  completeNightResultReveal,
+  getEligibleVoters,
+  startMansionSession,
+  submitDayAction,
+  submitEventVotes,
+  submitNightAction,
+  submitTrialVotes,
+  type MansionSession
+} from "./game/gameSession";
+import { MANSION_ROLES, type MansionPlayer, type NightAction } from "./game/mafiaEngine";
+import { MANSION_EVENT_DECK, type MansionEventChoiceId } from "./game/events";
+import type { EvidenceCard, MansionRoom, PublicAction } from "./game/dayActions";
 import { shouldConcealSecretRole } from "./game/privacyLifecycle";
 
-type Screen = "home" | "setup" | "handoff" | "ready" | "secret" | "intro" | "round" | "vote" | "ending";
+type Screen = "home" | "setup" | "roles" | "intro" | "game";
+type PrivateStep = "handoff" | "ready" | "secret";
+type DayActionType = "search-room" | "interrogate" | "share-evidence" | "study-ritual" | "guard-player" | "accuse";
+
+const CLUES: EvidenceCard[] = [
+  { id: "r1", title: "Пепельный знак", description: "На камне выжжен символ, похожий на раскрытый глаз.", room: "library", kind: "ritual", isFalseLead: false },
+  { id: "r2", title: "Чёрная свеча", description: "Воск пахнет сырой землёй. На фитиле засохла тёмная кровь.", room: "chapel", kind: "ritual", isFalseLead: false },
+  { id: "r3", title: "Схема подвала", description: "На обороте плана дома нарисован круг из пяти отметок.", room: "basement", kind: "ritual", isFalseLead: false },
+  { id: "t1", title: "Разорванная записка", description: "«Не впускай его после полуночи». Подпись отсутствует.", room: "kitchen", kind: "testimony", isFalseLead: false },
+  { id: "t2", title: "Список гостей", description: "Одно имя вписано чернилами поверх выскобленного текста.", room: "observatory", kind: "testimony", isFalseLead: false },
+  { id: "f1", title: "Чужая перчатка", description: "Перчатка найдена у окна, но на ней нет отпечатков.", room: "library", kind: "trace", isFalseLead: true },
+  { id: "f2", title: "Сломанные часы", description: "Стрелки остановились на 00:13. Механизм исправен.", room: "kitchen", kind: "trace", isFalseLead: true },
+  { id: "f3", title: "Пятно на ковре", description: "Пятно похоже на кровь, но это всего лишь старое вино.", room: "chapel", kind: "trace", isFalseLead: true },
+  { id: "r4", title: "Костяная печать", description: "Под слоем пыли обнаружена печать с тем же символом.", room: "observatory", kind: "ritual", isFalseLead: false },
+  { id: "t3", title: "Дневник смотрителя", description: "Последняя запись сделана рукой, которой не было в доме сорок лет.", room: "basement", kind: "testimony", isFalseLead: false },
+  { id: "f4", title: "Мокрые следы", description: "Следы ведут к двери, но заканчиваются посреди комнаты.", room: "observatory", kind: "trace", isFalseLead: true },
+  { id: "r5", title: "Обугленный свиток", description: "Осталась фраза: «Пять голосов откроют врата».", room: "chapel", kind: "ritual", isFalseLead: false }
+];
+
+const ROOMS: { id: MansionRoom; label: string }[] = [
+  { id: "library", label: "Библиотека" }, { id: "chapel", label: "Часовня" },
+  { id: "kitchen", label: "Кухня" }, { id: "observatory", label: "Обсерватория" },
+  { id: "basement", label: "Подвал" }
+];
+
 function speak(text: string, enabled: boolean) {
   if (!enabled || !("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
@@ -21,43 +56,62 @@ function speak(text: string, enabled: boolean) {
 export default function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [names, setNames] = useState(["Игрок 1", "Игрок 2", "Игрок 3", "Игрок 4", "Игрок 5"]);
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [transfer, setTransfer] = useState<TransferState>(startRoleFlow());
-  const [roundIndex, setRoundIndex] = useState(0);
-  const [votes, setVotes] = useState<Record<string, string>>({});
-  const [voterIndex, setVoterIndex] = useState(0);
+  const [session, setSession] = useState<MansionSession | null>(null);
+  const [roleIndex, setRoleIndex] = useState(0);
+  const [privateStep, setPrivateStep] = useState<PrivateStep>("handoff");
+  const [privateVisible, setPrivateVisible] = useState(false);
   const [speechEnabled, setSpeechEnabled] = useState(false);
-  const [showRoleDetails, setShowRoleDetails] = useState(true);
   const [error, setError] = useState("");
+  const [eventVotes, setEventVotes] = useState<Record<string, MansionEventChoiceId>>({});
+  const [eventVoterIndex, setEventVoterIndex] = useState(0);
+  const [trialVotes, setTrialVotes] = useState<Record<string, string>>({});
+  const [trialVoterIndex, setTrialVoterIndex] = useState(0);
+  const [dayActionType, setDayActionType] = useState<DayActionType>("search-room");
+  const [room, setRoom] = useState<MansionRoom>("library");
+  const [targetId, setTargetId] = useState("");
+  const [question, setQuestion] = useState("Что ты делал ночью?");
+  const [evidenceId, setEvidenceId] = useState("");
+  const [ritualEvidenceA, setRitualEvidenceA] = useState("");
+  const [ritualEvidenceB, setRitualEvidenceB] = useState("");
+  const [nightTargetId, setNightTargetId] = useState("");
 
-  const currentPlayer = players[transfer.playerIndex];
-  const round = ROUNDS[roundIndex % ROUNDS.length];
-  const voteCounts = useMemo(() => Object.values(votes).reduce<Record<string, number>>((acc, id) => {
-    acc[id] = (acc[id] || 0) + 1; return acc;
-  }, {}), [votes]);
+  const players = session?.players ?? [];
+  const currentRolePlayer = players[roleIndex];
+  const living = players.filter((player) => player.alive);
+  const eventVoters = session ? living : [];
+  const trialVoters = session ? getEligibleVoters(players).map((id) => players.find((player) => player.id === id)!).filter(Boolean) : [];
+  const dayActor = session ? activeDayPlayer(session) : null;
+  const nightActor = session ? activeNightPlayer(session) : null;
+  const resultActor = session ? activeNightResultPlayer(session) : null;
+  const event = session?.currentEvent ?? null;
+  const currentEventChoice = event?.choices[0];
+  const privateCultMates = currentRolePlayer ? players.filter((player) => player.id !== currentRolePlayer.id && (player.roleId === "cultist" || player.roleId === "acolyte")) : [];
+  const roleColor = currentRolePlayer && MANSION_ROLES[currentRolePlayer.roleId].faction === "cult" ? "danger" : "warm";
 
-  // Conceal private roles on every browser/iOS lifecycle transition that can expose the screen.
+  const voteCounts = useMemo(() => Object.values(trialVotes).reduce<Record<string, number>>((counts, id) => {
+    counts[id] = (counts[id] ?? 0) + 1;
+    return counts;
+  }, {}), [trialVotes]);
+
   useEffect(() => {
-    const hideSecret = (event: "visibilitychange" | "blur" | "pagehide") => {
-      if (!shouldConcealSecretRole(screen, event, document.visibilityState)) return;
+    const conceal = (eventName: "visibilitychange" | "blur" | "pagehide") => {
+      if (!shouldConcealSecretRole(screen === "roles" || screen === "game" ? (privateVisible ? "secret" : "ready") : screen, eventName, document.visibilityState)) return;
+      setPrivateVisible(false);
+      if (screen === "roles") setPrivateStep("ready");
       window.speechSynthesis?.cancel();
-      setShowRoleDetails(false);
-      setScreen("ready");
-      setTransfer((state) => concealRole(state));
     };
-    const onVisibilityChange = () => hideSecret("visibilitychange");
-    const onBlur = () => hideSecret("blur");
-    const onPageHide = () => hideSecret("pagehide");
-
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("blur", onBlur);
-    window.addEventListener("pagehide", onPageHide);
+    const visibility = () => conceal("visibilitychange");
+    const blur = () => conceal("blur");
+    const pagehide = () => conceal("pagehide");
+    document.addEventListener("visibilitychange", visibility);
+    window.addEventListener("blur", blur);
+    window.addEventListener("pagehide", pagehide);
     return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("blur", onBlur);
-      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", visibility);
+      window.removeEventListener("blur", blur);
+      window.removeEventListener("pagehide", pagehide);
     };
-  }, [screen]);
+  }, [screen, privateVisible]);
 
   function beginSetup() {
     setNames(["Игрок 1", "Игрок 2", "Игрок 3", "Игрок 4", "Игрок 5"]);
@@ -66,187 +120,313 @@ export default function App() {
   }
 
   function startGame() {
-    const normalized = names.map((name, index) => name.trim() || `Игрок ${index + 1}`);
-    if (normalized.length < 4 || normalized.length > 7) { setError("Нужно от 4 до 7 игроков."); return; }
-    const roles = assignRoles(normalized, true);
-    const nextPlayers = normalized.map((name, index) => ({ id: `p${index}`, name, role: roles[index], revealed: false }));
-    setPlayers(nextPlayers);
-    setTransfer(startRoleFlow());
-    setRoundIndex(0);
-    setVotes({});
-    setVoterIndex(0);
-    setScreen("handoff");
+    try {
+      const next = startMansionSession(names.map((name, index) => name.trim() || `Игрок ${index + 1}`), CLUES);
+      setSession(next);
+      setRoleIndex(0);
+      setPrivateStep("handoff");
+      setPrivateVisible(false);
+      setError("");
+      setScreen("roles");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Не удалось начать игру.");
+    }
   }
 
-  function receivePhone() {
-    if (transfer.stage !== "handoff") return;
-    setTransfer((state) => confirmPhoneReceived(state));
-    setScreen("ready");
-    speak(`${currentPlayer?.name}, когда будете готовы, получите свою роль.`, speechEnabled);
+  function receivePrivatePhone() {
+    setPrivateVisible(false);
+    setPrivateStep("ready");
   }
 
-  function revealCurrentRole() {
-    if (transfer.stage !== "ready") return;
-    setTransfer((state) => revealRole(state));
-    setShowRoleDetails(true);
-    setScreen("secret");
-    // Private role, faction, description and objective must never enter the public narration queue.
+  function revealRole() {
+    setPrivateVisible(true);
+    setPrivateStep("secret");
   }
 
-  function confirmRoleAndPass() {
-    if (!currentPlayer || transfer.stage !== "secret") return;
-    setPlayers((all) => all.map((player, index) => index === transfer.playerIndex ? { ...player, revealed: true } : player));
-    setShowRoleDetails(false);
-    window.speechSynthesis?.cancel();
-    const next = hideAndPass(transfer, players.length);
-    setTransfer(next);
-    if (next.stage === "next") {
-      setScreen("intro");
-      speak(INTRO.map((beat) => beat.title + ". " + beat.text).join(" "), speechEnabled);
-    } else setScreen("handoff");
-  }
-
-  function beginRound() {
-    setScreen("round");
-    speak(round.title + ". " + round.prompt, speechEnabled);
-  }
-
-  function completeRound() {
-    if (roundIndex + 1 < ROUNDS.length) {
-      const nextIndex = roundIndex + 1;
-      setRoundIndex(nextIndex);
-      setScreen("round");
-      speak(ROUNDS[nextIndex].title + ". " + ROUNDS[nextIndex].prompt, speechEnabled);
+  function confirmRole() {
+    setPrivateVisible(false);
+    if (roleIndex + 1 < players.length) {
+      setRoleIndex((index) => index + 1);
+      setPrivateStep("handoff");
       return;
     }
-    setVotes({});
-    setVoterIndex(0);
-    setScreen("vote");
-    speak("Три события позади. Время тайного голосования. Передавайте телефон по кругу.", speechEnabled);
+    setScreen("intro");
+    speak("Добро пожаловать в особняк. Один из вас служит культу. Обсуждайте вслух, сомневайтесь, ищите улики. Но помните: не всякая правда безопасна.", speechEnabled);
   }
 
-  function submitVote(voterId: string, suspectId: string) {
-    if (!suspectId || votes[voterId] || !players.some((player) => player.id === suspectId)) return;
-    const next = { ...votes, [voterId]: suspectId };
-    setVotes(next);
-    if (Object.keys(next).length >= players.length) setScreen("ending");
-    else setVoterIndex((index) => index + 1);
+  function beginDay() {
+    setScreen("game");
+    setPrivateStep("handoff");
+    setPrivateVisible(false);
+    speak(`День ${session?.day ?? 1}. Каждый живой игрок совершит одно публичное действие. Обсуждайте всё вслух.`, speechEnabled);
+  }
+
+  function submitAction(action: PublicAction) {
+    if (!session || !dayActor) return;
+    try {
+      const next = submitDayAction(session, dayActor.id, action);
+      setSession(next);
+      setPrivateStep("handoff");
+      setTargetId("");
+      setEvidenceId("");
+      setError("");
+      speak(next.lastPublicMessage, speechEnabled);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Действие не принято.");
+    }
+  }
+
+  function castEventVote(choiceId: MansionEventChoiceId) {
+    if (!session || !eventVoters[eventVoterIndex]) return;
+    const voter = eventVoters[eventVoterIndex];
+    const nextVotes = { ...eventVotes, [voter.id]: choiceId };
+    setEventVotes(nextVotes);
+    if (eventVoterIndex + 1 < eventVoters.length) {
+      setEventVoterIndex((index) => index + 1);
+      setPrivateStep("handoff");
+      return;
+    }
+    try {
+      const next = submitEventVotes(session, nextVotes);
+      setSession(next);
+      setEventVotes({});
+      setEventVoterIndex(0);
+      setPrivateStep("handoff");
+      setError("");
+      speak(next.lastPublicMessage, speechEnabled);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Голоса события не приняты.");
+    }
+  }
+
+  function castTrialVote(suspectId: string) {
+    if (!session || !trialVoters[trialVoterIndex]) return;
+    const voter = trialVoters[trialVoterIndex];
+    const nextVotes = { ...trialVotes, [voter.id]: suspectId };
+    setTrialVotes(nextVotes);
+    if (trialVoterIndex + 1 < trialVoters.length) {
+      setTrialVoterIndex((index) => index + 1);
+      setPrivateStep("handoff");
+      return;
+    }
+    try {
+      const next = submitTrialVotes(session, nextVotes);
+      setSession(next);
+      setTrialVotes({});
+      setTrialVoterIndex(0);
+      setPrivateStep("handoff");
+      setError("");
+      speak(next.lastPublicMessage, speechEnabled);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Голосование не принято.");
+    }
+  }
+
+  function makeNightMove(kind: NightAction["kind"], target?: string) {
+    if (!session || !nightActor) return;
+    try {
+      const action: NightAction = { actorId: nightActor.id, kind, ...(target ? { targetId: target } : {}) };
+      const next = submitNightAction(session, action);
+      setSession(next);
+      setPrivateStep("handoff");
+      setNightTargetId("");
+      setError("");
+      if (next.phase === "ending") speak("Рассвет принёс окончательный ответ. Игра завершена.", speechEnabled);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Ночное действие не принято.");
+    }
+  }
+
+  function revealNightResult() {
+    if (!session || !resultActor) return;
+    setPrivateVisible(true);
+  }
+
+  function acknowledgeNightResult() {
+    if (!session || !resultActor) return;
+    try {
+      const next = completeNightResultReveal(session, resultActor.id);
+      setSession(next);
+      setPrivateVisible(false);
+      setPrivateStep("handoff");
+      setError("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Не удалось закрыть личную подсказку.");
+    }
   }
 
   function reset() {
     window.speechSynthesis?.cancel();
-    setPlayers([]);
-    setVotes({});
+    setSession(null);
     setScreen("home");
+    setError("");
   }
 
-  const roleColor = currentPlayer?.role.team === "entity" ? "danger" : "warm";
-  const possessed = players.find((player) => player.role.team === "entity");
-  const guestsWon = possessed ? getWinningTeam(possessed.id, votes, players.length) === "guests" : false;
+  function renderHandoff(player: MansionPlayer, label: string, onReady: () => void) {
+    return <section className="handoff screen-enter">
+      <div className="seal"><Eye size={36}/></div>
+      <p className="eyebrow">{label}</p>
+      <h2>Передайте<br/><em>телефон</em></h2>
+      <p className="handoff-name">{player.name}</p>
+      <p className="muted">Пусть только этот игрок возьмёт телефон. Остальные не должны смотреть на экран.</p>
+      <button className="primary-button full" onClick={onReady}>Телефон у меня <ChevronRight size={18}/></button>
+    </section>;
+  }
 
-  return (
-    <main className="app-shell">
-      <div className="ambient ambient-one" /><div className="ambient ambient-two" />
-      <header className="topbar">
-        <button className="brand" onClick={() => screen === "home" ? undefined : reset()} aria-label="На главную">
-          <span className="brand-mark"><Moon size={17} /></span><span>THE MANOR <small>HALLOWEEN GAME</small></span>
-        </button>
-        <button className="icon-button" onClick={() => setSpeechEnabled((value) => {
-          if (value) window.speechSynthesis?.cancel();
-          return !value;
-        })} aria-label={speechEnabled ? "Выключить озвучку" : "Включить озвучку"}>
-          {speechEnabled ? <Volume2 size={18}/> : <VolumeX size={18}/>}
-        </button>
-      </header>
+  function renderPrivateReady(player: MansionPlayer, label: string, onReveal: () => void) {
+    return <section className="handoff screen-enter">
+      <div className="seal"><Eye size={36}/></div><p className="eyebrow">{label}</p>
+      <h2>Экран видите<br/><em>только вы?</em></h2>
+      <p className="muted">Убедитесь, что рядом никто не видит экран. Нажмите, когда будете готовы.</p>
+      <button className="primary-button full" onClick={onReveal}>Показать информацию <Eye size={17}/></button>
+      <p className="microcopy">Игрок: {player.name}</p>
+    </section>;
+  }
 
-      {screen === "home" && <section className="hero screen-enter">
-        <div className="eyebrow"><span className="dot"/> HALLOWEEN EDITION · 2026</div>
-        <div className="hero-art"><div className="moon-disc"/><div className="silhouette-house"><span/><i/><b/></div><div className="fog fog-a"/><div className="fog fog-b"/></div>
-        <p className="kicker">ОДНА НОЧЬ. ОДИН ОСОБНЯК. НЕ ВСЕ ДОЖИВУТ ДО РАССВЕТА.</p>
-        <h1>Последний<br/><em>в особняке</em></h1>
-        <p className="intro-copy">Среди гостей прячется нечто нечеловеческое. Доверяй интуиции. Не доверяй соседу.</p>
-        <button className="primary-button" onClick={beginSetup}>Открыть двери <ChevronRight size={18}/></button>
-        <div className="hero-meta"><span><UsersIcon/> 4–7 ИГРОКОВ</span><span><Moon size={14}/> 20–30 МИНУТ</span><span><Shield size={14}/> 1 ТЕЛЕФОН</span></div>
-      </section>}
+  const dayActionButtons: { id: DayActionType; label: string }[] = [
+    { id: "search-room", label: "Обыскать комнату" },
+    { id: "interrogate", label: "Допросить игрока" },
+    { id: "share-evidence", label: "Раскрыть свою улику" },
+    { id: "study-ritual", label: "Изучить ритуал" },
+    { id: "guard-player", label: "Публично защитить" },
+    { id: "accuse", label: "Выдвинуть на суд" }
+  ];
 
-      {screen === "setup" && <section className="panel screen-enter">
-        <button className="back-link" onClick={() => setScreen("home")}><ArrowLeft size={16}/> Назад</button>
-        <div className="section-mark"><Ghost size={22}/></div>
-        <p className="eyebrow">ПОДГОТОВКА К РИТУАЛУ</p><h2>Кто рискнёт<br/><em>войти внутрь?</em></h2>
-        <p className="muted">Добавьте имена. Телефон будет передаваться по кругу.</p>
-        <div className="player-count">
-          <button className="stepper" onClick={() => setNames((all) => all.length > 4 ? all.slice(0, -1) : all)} aria-label="Уменьшить количество">−</button>
-          <div><strong>{names.length}</strong><small>ИГРОКОВ</small></div>
-          <button className="stepper" onClick={() => setNames((all) => all.length < 7 ? [...all, `Игрок ${all.length + 1}`] : all)} aria-label="Увеличить количество">+</button>
-        </div>
-        <div className="name-list">{names.map((name, index) => <label className="name-field" key={index}><span>{String(index + 1).padStart(2, "0")}</span><input value={name} maxLength={20} onChange={(event) => setNames((all) => all.map((item, i) => i === index ? event.target.value : item))} aria-label={`Имя игрока ${index + 1}`}/></label>)}</div>
-        {error && <p className="error-text">{error}</p>}
-        <div className="privacy-note"><Shield size={17}/><span>Роли будут показаны по одной. Следующая роль не появится, пока новый игрок сам не нажмёт кнопку.</span></div>
-        <button className="primary-button full" onClick={startGame}>Начать историю <ChevronRight size={18}/></button>
-      </section>}
+  const currentPrivateResult = resultActor && session?.lastNight ? session.lastNight.privateResults[resultActor.id] : "";
 
-      {screen === "handoff" && <section className="handoff screen-enter">
-        <div className="seal"><span>✦</span><Ghost size={40}/></div>
-        <p className="eyebrow">СЕКРЕТНЫЙ КОНВЕРТ · {transfer.playerIndex + 1}/{players.length}</p>
-        <h2>Передайте<br/><em>телефон</em></h2>
-        <p className="handoff-name">{players[transfer.playerIndex]?.name}</p>
-        <p className="muted">Пусть только этот игрок возьмёт телефон. Убедитесь, что остальные не смотрят на экран.</p>
-        <button className="primary-button full" onClick={receivePhone}>Телефон у меня <ChevronRight size={18}/></button>
-        <p className="microcopy">Роль скрыта до отдельного подтверждения.</p>
-      </section>}
+  return <main className="app-shell">
+    <div className="ambient ambient-one"/><div className="ambient ambient-two"/>
+    <header className="topbar">
+      <button className="brand" onClick={() => screen === "home" ? undefined : reset()} aria-label="На главную">
+        <span className="brand-mark"><Moon size={17}/></span><span>THE MANOR <small>HALLOWEEN GAME</small></span>
+      </button>
+      <button className="icon-button" onClick={() => setSpeechEnabled((value) => { if (value) window.speechSynthesis?.cancel(); return !value; })} aria-label={speechEnabled ? "Выключить озвучку" : "Включить озвучку"}>
+        {speechEnabled ? <Volume2 size={18}/> : <VolumeX size={18}/>}
+      </button>
+    </header>
 
-      {screen === "ready" && <section className="handoff screen-enter">
-        <div className="seal"><Eye size={36}/></div><p className="eyebrow">ТОЛЬКО ДЛЯ ВАШИХ ГЛАЗ</p>
-        <h2>Готовы узнать<br/><em>свою тайну?</em></h2>
-        <p className="muted">Убедитесь, что экран видите только вы. После открытия запомните роль и передайте телефон дальше.</p>
-        <button className="primary-button full" onClick={revealCurrentRole}>Получить роль <Eye size={17}/></button>
-      </section>}
+    {screen === "home" && <section className="hero screen-enter">
+      <div className="eyebrow"><span className="dot"/> HALLOWEEN EDITION · 2026</div>
+      <div className="hero-art"><div className="moon-disc"/><div className="silhouette-house"><span/><i/><b/></div><div className="fog fog-a"/><div className="fog fog-b"/></div>
+      <p className="kicker">ОДНА НОЧЬ. ОДИН ОСОБНЯК. НЕ ВСЕ ДОЖИВУТ ДО РАССВЕТА.</p>
+      <h1>Последний<br/><em>в особняке</em></h1>
+      <p className="intro-copy">Среди гостей прячется тайный культ. Доверяй интуиции. Не доверяй соседу.</p>
+      <button className="primary-button" onClick={beginSetup}>Открыть двери <ChevronRight size={18}/></button>
+      <div className="hero-meta"><span>♟ 4–7 ИГРОКОВ</span><span><Moon size={14}/> 25–45 МИНУТ</span><span><Shield size={14}/> 1 ТЕЛЕФОН</span></div>
+    </section>}
 
-      {screen === "secret" && currentPlayer && <section className={`secret-card screen-enter ${roleColor}`} >
+    {screen === "setup" && <section className="panel screen-enter">
+      <button className="back-link" onClick={() => setScreen("home")}><ArrowLeft size={16}/> Назад</button>
+      <div className="section-mark"><Ghost size={22}/></div>
+      <p className="eyebrow">ПОДГОТОВКА К РИТУАЛУ</p><h2>Кто рискнёт<br/><em>войти внутрь?</em></h2>
+      <p className="muted">Добавьте имена. Телефон будет передаваться по кругу.</p>
+      <div className="player-count">
+        <button className="stepper" onClick={() => setNames((all) => all.length > 4 ? all.slice(0, -1) : all)} aria-label="Уменьшить количество">−</button>
+        <div><strong>{names.length}</strong><small>ИГРОКОВ</small></div>
+        <button className="stepper" onClick={() => setNames((all) => all.length < 7 ? [...all, `Игрок ${all.length + 1}`] : all)} aria-label="Увеличить количество">+</button>
+      </div>
+      <div className="name-list">{names.map((name, index) => <label className="name-field" key={index}><span>{String(index + 1).padStart(2, "0")}</span><input value={name} maxLength={20} onChange={(event) => setNames((all) => all.map((item, i) => i === index ? event.target.value : item))} aria-label={`Имя игрока ${index + 1}`}/></label>)}</div>
+      {error && <p className="error-text">{error}</p>}
+      <div className="privacy-note"><Shield size={17}/><span>Каждый увидит только собственную роль. Личные сведения не озвучиваются.</span></div>
+      <button className="primary-button full" onClick={startGame}>Начать историю <ChevronRight size={18}/></button>
+    </section>}
+
+    {screen === "roles" && currentRolePlayer && <>
+      {privateStep === "handoff" && renderHandoff(currentRolePlayer, `СЕКРЕТНЫЙ КОНВЕРТ · ${roleIndex + 1}/${players.length}`, receivePrivatePhone)}
+      {privateStep === "ready" && renderPrivateReady(currentRolePlayer, "ТОЛЬКО ДЛЯ ВАШИХ ГЛАЗ", revealRole)}
+      {privateStep === "secret" && <section className={`secret-card screen-enter ${roleColor}`}>
         <div className="secret-top"><span className="eyebrow">ЛИЧНОЕ ДЕЛО · НЕ ПОКАЗЫВАТЬ</span><span className="classified">CLASSIFIED</span></div>
-        <div className="role-icon">{currentPlayer.role.team === "entity" ? <Skull size={35}/> : <Shield size={35}/>}</div>
-        <p className="eyebrow">{currentPlayer.name.toUpperCase()}, ЭТО ВАША РОЛЬ</p>
-        <h2>{showRoleDetails ? currentPlayer.role.name : "Роль скрыта"}</h2>
-        {showRoleDetails && <><p className="role-description">{currentPlayer.role.description}</p><div className="objective"><span>ВАША ЦЕЛЬ</span><p>{currentPlayer.role.objective}</p></div></>}
-        <button className="primary-button full" onClick={confirmRoleAndPass}><Check size={18}/> Я запомнил роль</button>
+        <div className="role-icon">{MANSION_ROLES[currentRolePlayer.roleId].faction === "cult" ? <Skull size={35}/> : <Shield size={35}/>}</div>
+        <p className="eyebrow">{currentRolePlayer.name.toUpperCase()}, ЭТО ВАША РОЛЬ</p>
+        <h2>{MANSION_ROLES[currentRolePlayer.roleId].name}</h2>
+        <p className="role-description">{MANSION_ROLES[currentRolePlayer.roleId].description}</p>
+        <div className="objective"><span>ВАША ЦЕЛЬ</span><p>{MANSION_ROLES[currentRolePlayer.roleId].objective}</p></div>
+        {MANSION_ROLES[currentRolePlayer.roleId].faction === "cult" && <div className="objective"><span>СОЮЗНИКИ ПО КУЛЬТУ</span><p>{privateCultMates.length ? privateCultMates.map((player) => player.name).join(", ") : "Ты единственный участник культа."}</p><p className="microcopy">Во время ночи культисты могут тихо согласовать общую цель вслух. Каждый выбирает её на телефоне отдельно.</p></div>}
+        <button className="primary-button full" onClick={confirmRole}><Check size={18}/> Я запомнил роль</button>
         <p className="microcopy">После нажатия секрет исчезнет. Вернуться к нему нельзя.</p>
       </section>}
+    </>}
 
-      {screen === "intro" && <section className="panel narrative screen-enter">
-        <div className="section-mark"><DoorOpen size={23}/></div><p className="eyebrow">ГЛАВА ПЕРВАЯ · ПОЛНОЧЬ</p><h2>Особняк<br/><em>просыпается</em></h2>
-        {INTRO.map((beat) => <article className="story-beat" key={beat.title}><span>{beat.title}</span><p>{beat.text}</p></article>)}
-        <div className="host-line"><AudioLines size={17}/><span>Ведущий ждёт, пока все прочитают историю.</span></div>
-        <button className="primary-button full" onClick={beginRound}>Начать первый раунд <ChevronRight size={18}/></button>
-      </section>}
+    {screen === "intro" && <section className="panel narrative screen-enter">
+      <div className="section-mark"><DoorOpen size={23}/></div><p className="eyebrow">ГЛАВА ПЕРВАЯ · ПОЛНОЧЬ</p><h2>Особняк<br/><em>просыпается</em></h2>
+      <article className="story-beat"><span>Последний звонок</span><p>Ветер захлопывает тяжёлую дверь. Телефоны теряют сеть. В глубине дома загорается лампа, хотя электричество отключили сорок лет назад.</p></article>
+      <article className="story-beat"><span>Хозяин дома</span><p>Из громкоговорителя раздаётся спокойный голос: «Добро пожаловать. Один из вас служит культу. Если ритуал завершится, никто не покинет этот дом».</p></article>
+      <article className="story-beat"><span>Правила ночи</span><p>Днём говорите открыто, спорьте и делитесь уликами. Ночью передавайте телефон по кругу: личные действия и результаты видит только тот, кому они предназначены.</p></article>
+      <div className="host-line"><AudioLines size={17}/><span>Обсуждайте вслух. Приложение не передаёт сообщения между игроками.</span></div>
+      <button className="primary-button full" onClick={beginDay}>Начать первый день <ChevronRight size={18}/></button>
+    </section>}
 
-      {screen === "round" && <section className="panel narrative screen-enter">
-        <div className="round-counter">СОБЫТИЕ {roundIndex + 1} ИЗ {ROUNDS.length} <span>·</span> НОЧЬ НЕ КОНЧАЕТСЯ</div>
-        <div className="section-mark"><Sparkles size={23}/></div><p className="eyebrow">СОБЫТИЕ ОСОБНЯКА</p><h2>{round.title}</h2>
-        <p className="round-prompt">{round.prompt}</p>
-        <div className="choice-list">{round.choices.map((choice, index) => <div className="choice" key={choice}><span>{index + 1}</span>{choice}</div>)}</div>
-        <div className="host-line"><AudioLines size={17}/><span>Ведущий озвучит событие. Обсудите решение вслух.</span></div>
-        <button className="primary-button full" onClick={completeRound}>{roundIndex + 1 < ROUNDS.length ? "Следующее событие" : "Начать голосование"} <ChevronRight size={18}/></button>
-      </section>}
+    {screen === "game" && session && <>
+      <section className="panel narrative screen-enter">
+        <div className="round-counter">ДЕНЬ {session.day} <span>·</span> {session.phase === "day-actions" ? "ПУБЛИЧНЫЕ ДЕЙСТВИЯ" : session.phase === "event" ? "СОБЫТИЕ" : session.phase === "trial" ? "ТАЙНОЕ ГОЛОСОВАНИЕ" : session.phase === "night" ? "НОЧЬ" : session.phase === "night-results" ? "ЛИЧНЫЕ РЕЗУЛЬТАТЫ" : "ИТОГ"}</div>
+        <div className="section-mark"><Sparkles size={23}/></div>
+        <p className="eyebrow">ОСОБНЯК · РИТУАЛ {session.ritualProgress}/5</p>
+        <div className="player-status">{players.map((player) => <span className={player.alive ? "status-alive" : "status-ghost"} key={player.id}>{player.name}{player.alive ? "" : " · призрак"}</span>)}</div>
+        {session.lastPublicMessage && <p className="round-prompt">{session.lastPublicMessage}</p>}
+      </section>
 
-      {screen === "vote" && <section className="panel narrative screen-enter">
-        <div className="section-mark"><EyeOff size={23}/></div><p className="eyebrow">ОБСУЖДЕНИЕ · ТАЙНОЕ ГОЛОСОВАНИЕ</p><h2>Кому ты<br/><em>не доверяешь?</em></h2>
-        <p className="muted">Передавайте телефон по кругу. Каждый выбирает подозреваемого, не показывая свой выбор остальным.</p>
-        {players[voterIndex] && <div className="vote-row"><strong>{players[voterIndex].name}</strong><select key={players[voterIndex].id} defaultValue="" onChange={(event) => submitVote(players[voterIndex].id, event.target.value)} aria-label={`Голос игрока ${players[voterIndex].name}`}><option value="" disabled>Выбрать подозреваемого</option>{players.filter((candidate) => candidate.id !== players[voterIndex].id).map((candidate) => <option value={candidate.id} key={candidate.id}>{candidate.name}</option>)}</select></div>}
-        <p className="microcopy">Голоса приняты: {Object.keys(votes).length}/{players.length}. Передайте телефон следующему игроку.</p>
-      </section>}
+      {session.phase === "day-actions" && dayActor && <>
+        {privateStep === "handoff" ? renderHandoff(dayActor, `ПУБЛИЧНЫЙ ХОД · ${session.dayState.actionsUsed.length + 1}/${living.length}`, () => setPrivateStep("ready")) : <section className="panel narrative screen-enter">
+          <p className="eyebrow">ХОД ИГРОКА</p><h2>{dayActor.name}</h2>
+          <p className="muted">Выбери одно действие. После этого можно обсуждать результат всей группой.</p>
+          <div className="choice-list">{dayActionButtons.map((item) => <button className={`choice ${dayActionType === item.id ? "choice-selected" : ""}`} key={item.id} onClick={() => setDayActionType(item.id)}><span>›</span>{item.label}</button>)}</div>
+          {dayActionType === "search-room" && <><label className="muted">Комната</label><select value={room} onChange={(e) => setRoom(e.target.value as MansionRoom)}>{ROOMS.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select><button className="primary-button full" onClick={() => submitAction({ type: "search-room", room })}>Обыскать комнату</button></>}
+          {dayActionType === "interrogate" && <><select value={targetId} onChange={(e) => setTargetId(e.target.value)}><option value="">Кого допросить?</option>{living.filter((p) => p.id !== dayActor.id).map((p) => <option value={p.id} key={p.id}>{p.name}</option>)}</select><input value={question} maxLength={180} onChange={(e) => setQuestion(e.target.value)} aria-label="Вопрос игроку"/><button className="primary-button full" disabled={!targetId} onClick={() => submitAction({ type: "interrogate", targetId, question })}>Задать вопрос</button></>}
+          {dayActionType === "share-evidence" && <><p className="muted">Твои личные улики: {(session.dayState.privateEvidence[dayActor.id] ?? []).length}</p><select value={evidenceId} onChange={(e) => setEvidenceId(e.target.value)}><option value="">Выбери улику</option>{(session.dayState.privateEvidence[dayActor.id] ?? []).map((card) => <option value={card.id} key={card.id}>{card.title}</option>)}</select><button className="primary-button full" disabled={!evidenceId} onClick={() => submitAction({ type: "share-evidence", evidenceId })}>Показать улику всем</button></>}
+          {dayActionType === "study-ritual" && <><p className="muted">Нужны две публичные ритуальные улики. Снижение прогресса на 1.</p><select value={ritualEvidenceA} onChange={(e) => setRitualEvidenceA(e.target.value)}><option value="">Первая улика</option>{session.dayState.publicEvidence.filter((card) => card.kind === "ritual").map((card) => <option key={card.id} value={card.id}>{card.title}</option>)}</select><select value={ritualEvidenceB} onChange={(e) => setRitualEvidenceB(e.target.value)}><option value="">Вторая улика</option>{session.dayState.publicEvidence.filter((card) => card.kind === "ritual" && card.id !== ritualEvidenceA).map((card) => <option key={card.id} value={card.id}>{card.title}</option>)}</select><button className="primary-button full" disabled={!ritualEvidenceA || !ritualEvidenceB} onClick={() => submitAction({ type: "study-ritual", evidenceIds: [ritualEvidenceA, ritualEvidenceB] })}>Замедлить ритуал</button></>}
+          {(dayActionType === "guard-player" || dayActionType === "accuse") && <><select value={targetId} onChange={(e) => setTargetId(e.target.value)}><option value="">Выбери игрока</option>{living.filter((p) => p.id !== dayActor.id).map((p) => <option value={p.id} key={p.id}>{p.name}</option>)}</select><button className="primary-button full" disabled={!targetId} onClick={() => submitAction(dayActionType === "guard-player" ? { type: "guard-player", targetId } : { type: "accuse", targetId })}>{dayActionType === "guard-player" ? "Публично защитить" : "Выдвинуть на суд"}</button></>}
+          {error && <p className="error-text">{error}</p>}
+          <div className="host-line"><AudioLines size={17}/><span>Публичное обсуждение происходит голосом игроков, не через приложение.</span></div>
+          <p className="microcopy">Публичные улики: {session.dayState.publicEvidence.map((card) => card.title).join(" · ") || "пока нет"}</p>
+        </section>}
+      </>}
 
-      {screen === "ending" && <section className="panel narrative screen-enter">
-        <div className="section-mark"><Skull size={24}/></div><p className="eyebrow">РАССВЕТ БЛИЗКО</p><h2>Кто пережил<br/><em>эту ночь?</em></h2>
-        <div className="results">{players.map((player) => <div className="result-row" key={player.id}><span>{player.name}</span><strong>{player.role.name}</strong><small>{voteCounts[player.id] || 0} голосов</small></div>)}</div>
-        <p className="ending-copy">{guestsWon ? "Гости вычислили одержимого! С первыми лучами солнца двери особняка распахиваются." : "Одержимый пережил голосование. Особняк снова ждёт новых гостей…"}</p>
+      {session.phase === "event" && event && <>
+        {privateStep === "handoff" ? renderHandoff(eventVoters[eventVoterIndex], `ОБЩЕЕ РЕШЕНИЕ · ГОЛОС ${eventVoterIndex + 1}/${eventVoters.length}`, () => setPrivateStep("ready")) : <section className="panel narrative screen-enter">
+          <div className="section-mark"><Sparkles size={23}/></div><p className="eyebrow">СОБЫТИЕ ОСОБНЯКА · {eventVoters[eventVoterIndex]?.name}</p><h2>{event.title}</h2><p className="round-prompt">{event.description}</p>
+          {event.choices.map((choice) => <button className="choice" key={choice.id} onClick={() => castEventVote(choice.id)}><span>›</span>{choice.label}</button>)}
+          <p className="microcopy">Голос тайный. Решение требует строгого большинства; иначе сработает исход по умолчанию.</p>
+        </section>}
+      </>}
+
+      {session.phase === "trial" && <>
+        {privateStep === "handoff" ? renderHandoff(trialVoters[trialVoterIndex], `ТАЙНОЕ ГОЛОСОВАНИЕ · ${trialVoterIndex + 1}/${trialVoters.length}`, () => setPrivateStep("ready")) : <section className="panel narrative screen-enter">
+          <div className="section-mark"><EyeOff size={23}/></div><p className="eyebrow">ЛИЧНЫЙ ГОЛОС · {trialVoters[trialVoterIndex]?.name}</p><h2>Кого<br/><em>изгнать?</em></h2>
+          <p className="muted">Выбор видит только голосующий. Призрак может отдать свой последний голос.</p>
+          {living.filter((p) => p.id !== trialVoters[trialVoterIndex]?.id).map((candidate) => <button className="choice" key={candidate.id} onClick={() => castTrialVote(candidate.id)}><span>›</span>{candidate.name}</button>)}
+          <p className="microcopy">Голоса: {Object.keys(trialVotes).length}/{trialVoters.length}. Для изгнания нужно строгое большинство.</p>
+        </section>}
+      </>}
+
+      {session.phase === "night" && nightActor && <>
+        {privateStep === "handoff" ? renderHandoff(nightActor, `НОЧНОЙ ХОД · ${session.nightActionIndex + 1}/${session.nightTurnOrder.length}`, () => setPrivateStep("ready")) : <section className={`secret-card screen-enter ${MANSION_ROLES[nightActor.roleId].faction === "cult" ? "danger" : "warm"}`}>
+          <div className="secret-top"><span className="eyebrow">НОЧЬ · ЛИЧНОЕ ДЕЙСТВИЕ</span><span className="classified">SECRET</span></div>
+          <p className="eyebrow">{nightActor.name.toUpperCase()}</p><h2>{MANSION_ROLES[nightActor.roleId].name}</h2>
+          {nightActor.alive && nightActor.roleId === "resident" && <><p className="role-description">Сегодня у тебя нет ночной способности. Передай телефон дальше.</p><button className="primary-button full" onClick={() => makeNightMove("pass")}>Продолжить ночь</button></>}
+          {nightActor.alive && (nightActor.roleId === "cultist" || nightActor.roleId === "acolyte") && <><p className="role-description">Культисты могут тихо договориться между собой, пока остальные закрывают глаза. Каждый выбирает цель отдельно.</p><select value={nightTargetId} onChange={(e) => setNightTargetId(e.target.value)}><option value="">Выбрать жертву</option>{living.filter((p) => MANSION_ROLES[p.roleId].faction !== "cult").map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select><button className="primary-button full" disabled={!nightTargetId} onClick={() => makeNightMove("cult-select", nightTargetId)}>Подтвердить выбор</button></>}
+          {nightActor.alive && nightActor.roleId === "detective" && <><p className="role-description">Выбери игрока для осторожного расследования. Результат будет неоднозначным и останется только у тебя.</p><select value={nightTargetId} onChange={(e) => setNightTargetId(e.target.value)}><option value="">Кого проверить?</option>{living.filter((p) => p.id !== nightActor.id).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select><button className="primary-button full" disabled={!nightTargetId} onClick={() => makeNightMove("investigate", nightTargetId)}>Провести расследование</button></>}
+          {nightActor.alive && (nightActor.roleId === "doctor" || nightActor.roleId === "guardian") && <><p className="role-description">Выбери игрока, которого хочешь защитить этой ночью.</p><select value={nightTargetId} onChange={(e) => setNightTargetId(e.target.value)}><option value="">Кого защитить?</option>{living.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select><button className="primary-button full" disabled={!nightTargetId} onClick={() => makeNightMove(nightActor.roleId === "doctor" ? "protect" : "ward", nightTargetId)}>Установить защиту</button></>}
+          {!nightActor.alive && <><p className="role-description">Ты призрак. Ночью больше нельзя применять способности.</p><button className="primary-button full" onClick={() => makeNightMove("pass")}>Передать телефон дальше</button></>}
+          {error && <p className="error-text">{error}</p>}
+        </section>}
+      </>}
+
+      {session.phase === "night-results" && resultActor && <>
+        {!privateVisible ? renderHandoff(resultActor, "ЛИЧНАЯ НОЧНАЯ ПОДСКАЗКА", revealNightResult) : <section className="secret-card screen-enter warm">
+          <div className="secret-top"><span className="eyebrow">ТОЛЬКО ДЛЯ ВАШИХ ГЛАЗ</span><span className="classified">PRIVATE</span></div>
+          <p className="eyebrow">{resultActor.name.toUpperCase()}</p><h2>Результат ночи</h2>
+          <p className="role-description">{currentPrivateResult}</p>
+          <button className="primary-button full" onClick={acknowledgeNightResult}>Скрыть и передать дальше <ChevronRight size={18}/></button>
+        </section>}
+      </>}
+      {session.phase === "ending" && <section className="panel narrative screen-enter">
+        <div className="section-mark"><Skull size={24}/></div><p className="eyebrow">РАССВЕТ · ИГРА ЗАВЕРШЕНА</p><h2>{session.winner === "guests" ? "Гости спасены" : "Культ победил"}</h2>
+        <p className="ending-copy">{session.winner === "guests" ? "Последний культист разоблачён. С первыми лучами солнца двери особняка распахиваются." : "Ритуал завершён или культ получил численный перевес. Особняк забирает всех."}</p>
+        <div className="results">{players.map((player) => <div className="result-row" key={player.id}><span>{player.name}{player.alive ? "" : " · выбыл"}</span><strong>{MANSION_ROLES[player.roleId].name}</strong><small>{MANSION_ROLES[player.roleId].faction === "cult" ? "Культ" : "Гости"}</small></div>)}</div>
         <button className="primary-button full" onClick={reset}>Сыграть снова <ChevronRight size={18}/></button>
       </section>}
-
-      <footer className="footer"><span>✦</span> НЕКОТОРЫЕ ДВЕРИ ЛУЧШЕ НЕ ОТКРЫВАТЬ <span>✦</span></footer>
-    </main>
-  );
-}
-
-function UsersIcon() {
-  return <span className="users-icon">♟</span>;
+    </>}
+    {error && screen !== "setup" && <p className="error-text">{error}</p>}
+    <footer className="footer"><span>✦</span> НЕКОТОРЫЕ ДВЕРИ ЛУЧШЕ НЕ ОТКРЫВАТЬ <span>✦</span></footer>
+  </main>;
 }
