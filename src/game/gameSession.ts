@@ -15,8 +15,9 @@ import {
   type EvidenceCard,
   type PublicAction
 } from "./dayActions";
+import { resolveMansionEvent, shuffleEvents, type MansionEvent, type MansionEventChoiceId } from "./events";
 
-export type SessionPhase = "day-actions" | "trial" | "night" | "ending";
+export type SessionPhase = "day-actions" | "event" | "event-private" | "trial" | "night" | "ending";
 
 export interface MansionSession {
   players: MansionPlayer[];
@@ -24,6 +25,11 @@ export interface MansionSession {
   phase: SessionPhase;
   ritualProgress: number;
   dayState: DayState;
+  eventDeck: MansionEvent[];
+  currentEvent: MansionEvent | null;
+  eventHistory: Array<{ eventId: string; choiceId: MansionEventChoiceId }>;
+  lastEventPrivateResults: Record<string, string>;
+  eventPrivatePlayerId: string | null;
   nightTurnOrder: string[];
   nightActionIndex: number;
   nightActions: NightAction[];
@@ -41,6 +47,11 @@ export function startMansionSession(names: string[], clueDeck: EvidenceCard[]): 
     phase: "day-actions",
     ritualProgress,
     dayState: createDayState(clueDeck, ritualProgress, 1),
+    eventDeck: shuffleEvents(),
+    currentEvent: null,
+    eventHistory: [],
+    lastEventPrivateResults: {},
+    eventPrivatePlayerId: null,
     nightTurnOrder: [],
     nightActionIndex: 0,
     nightActions: [],
@@ -67,9 +78,56 @@ export function submitDayAction(session: MansionSession, actorId: string, action
   const result = resolvePublicAction(session.players, session.dayState, actorId, action);
   const next: MansionSession = { ...session, dayState: result.state, lastPublicMessage: result.message };
   if (!activeDayPlayer(next)) {
-    next.phase = "trial";
+    const drawn = drawNextEvent(next.eventDeck);
+    next.phase = "event";
+    next.currentEvent = drawn.event;
+    next.eventDeck = drawn.remaining;
   }
   return next;
+}
+
+export function submitEventVotes(session: MansionSession, votes: Record<string, MansionEventChoiceId>): MansionSession {
+  if (session.phase !== "event" || !session.currentEvent) throw new Error("Сейчас нет события для голосования.");
+  const result = resolveMansionEvent(session.players, session.dayState, session.currentEvent, votes);
+  const eventHistory = [...session.eventHistory, { eventId: session.currentEvent.id, choiceId: result.chosenChoiceId }];
+  const winner = getMansionVictory(session.players, result.state.ritualProgress);
+  const privatePlayerId = Object.keys(result.privateResults)[0] ?? null;
+  if (winner) {
+    return {
+      ...session,
+      dayState: result.state,
+      ritualProgress: result.state.ritualProgress,
+      currentEvent: null,
+      eventHistory,
+      lastEventPrivateResults: result.privateResults,
+      eventPrivatePlayerId: null,
+      phase: "ending",
+      winner,
+      lastPublicMessage: result.publicMessage
+    };
+  }
+  return {
+    ...session,
+    dayState: result.state,
+    ritualProgress: result.state.ritualProgress,
+    currentEvent: null,
+    eventHistory,
+    lastEventPrivateResults: result.privateResults,
+    eventPrivatePlayerId: privatePlayerId,
+    phase: privatePlayerId ? "event-private" : "trial",
+    lastPublicMessage: result.publicMessage
+  };
+}
+
+export function completeEventPrivateReveal(session: MansionSession, playerId: string): MansionSession {
+  if (session.phase !== "event-private" || session.eventPrivatePlayerId !== playerId) {
+    throw new Error("Эта личная подсказка предназначена другому игроку.");
+  }
+  return {
+    ...session,
+    phase: "trial",
+    eventPrivatePlayerId: null
+  };
 }
 
 export function submitTrialVotes(session: MansionSession, votes: Record<string, string>): MansionSession {
@@ -141,4 +199,10 @@ export function submitNightAction(session: MansionSession, action: NightAction):
 
 export function getEligibleVoters(players: MansionPlayer[]): string[] {
   return players.filter((player) => player.alive || player.ghostVoteAvailable).map((player) => player.id);
+}
+
+function drawNextEvent(deck: MansionEvent[]): { event: MansionEvent; remaining: MansionEvent[] } {
+  const available = deck.length > 0 ? [...deck] : shuffleEvents();
+  const [event, ...remaining] = available;
+  return { event, remaining };
 }
