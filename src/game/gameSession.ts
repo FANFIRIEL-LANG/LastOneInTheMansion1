@@ -200,6 +200,16 @@ export function submitNightAction(session: MansionSession, action: NightAction):
 
   const resultPlayers = resolution.players;
   const privatePlayerIds = Object.keys(resolution.privateResults);
+  const attacked = resolution.attackedPlayerId ? resolution.players.find((player) => player.id === resolution.attackedPlayerId) : null;
+  const dawnMessage = !resolution.attackedPlayerId
+    ? "Ночь прошла без нападения. Никто не пострадал."
+    : resolution.attackBlocked
+      ? "Культ выбрал цель, но защита сработала. Никто не пострадал."
+      : attacked && !attacked.alive
+        ? `${attacked.name} не пережил(а) вторую рану и стал(а) призраком.`
+        : attacked
+          ? `${attacked.name} пережил(а) нападение, но получил(а) рану (${attacked.wounds}/2).`
+          : "Наступает рассвет.";
   const base: MansionSession = {
     ...session,
     players: resultPlayers,
@@ -209,7 +219,7 @@ export function submitNightAction(session: MansionSession, action: NightAction):
     nightResultOrder: privatePlayerIds,
     nightResultIndex: 0,
     winner: null,
-    lastPublicMessage: "Ночь закончилась. Наступает новый день."
+    lastPublicMessage: dawnMessage
   };
   if (privatePlayerIds.length > 0) return { ...base, phase: "night-results" };
   return advanceToNextDay(base);
@@ -230,7 +240,7 @@ function advanceToNextDay(session: MansionSession): MansionSession {
     nightActions: [],
     nightResultOrder: [],
     nightResultIndex: 0,
-    lastPublicMessage: "Наступает новый день. Особняк хранит ещё больше тайн."
+    lastPublicMessage: session.lastPublicMessage
   };
 }
 
