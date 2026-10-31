@@ -113,7 +113,7 @@ describe("private night resolution", () => {
       { actorId: "p1", kind: "cult-select", targetId: "p4" },
       { actorId: "p2", kind: "investigate", targetId: "p1" },
       { actorId: "p3", kind: "protect", targetId: "p3" },
-      { actorId: "p4", kind: "listen" }
+      { actorId: "p4", kind: "pass" }
     ];
     const result = resolveNight(players, actions, 0, "p4");
     expect(result.attackBlocked).toBe(true);
@@ -127,7 +127,7 @@ describe("private night resolution", () => {
       { actorId: "p1", kind: "cult-select", targetId: "p4" },
       { actorId: "p2", kind: "investigate", targetId: "p1" },
       { actorId: "p3", kind: "protect", targetId: "p3" },
-      { actorId: "p4", kind: "listen" }
+      { actorId: "p4", kind: "pass" }
     ];
     const result = resolveNight(players, actions, 0);
     expect(result.players[3].alive).toBe(false);
@@ -155,7 +155,7 @@ describe("private night resolution", () => {
       { actorId: "p1", kind: "cult-select", targetId: "p4" },
       { actorId: "p2", kind: "protect", targetId: "p1" },
       { actorId: "p3", kind: "protect", targetId: "p4" },
-      { actorId: "p4", kind: "listen" }
+      { actorId: "p4", kind: "pass" }
     ];
     expect(() => resolveNight(players, actions, 0)).toThrow();
   });
@@ -191,7 +191,7 @@ describe("secret trial voting and victory", () => {
   });
 
   it("ends for the cult when ritual is complete or cult reaches parity", () => {
-    const players = playersFor(["cultist", "acolyte", "detective", "doctor", "medium", "guardian"]);
+    const players = playersFor(["cultist", "acolyte", "detective", "doctor", "resident", "resident"]);
     expect(getMansionVictory(players, 5)).toBe("cult");
     players[2].alive = false;
     players[3].alive = false;
