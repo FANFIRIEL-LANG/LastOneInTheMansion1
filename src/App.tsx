@@ -26,7 +26,7 @@ export default function App() {
   const [roundIndex, setRoundIndex] = useState(0);
   const [votes, setVotes] = useState<Record<string, string>>({});
   const [voterIndex, setVoterIndex] = useState(0);
-  const [speechEnabled, setSpeechEnabled] = useState(true);
+  const [speechEnabled, setSpeechEnabled] = useState(false);
   const [showRoleDetails, setShowRoleDetails] = useState(true);
   const [error, setError] = useState("");
 
