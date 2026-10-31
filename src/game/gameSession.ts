@@ -153,7 +153,7 @@ export function submitNightAction(session: MansionSession, action: NightAction):
   const actor = activeNightPlayer(session);
   if (!actor || actor.id !== action.actorId) throw new Error("Сейчас ход другого игрока.");
   if (!actor.alive && action.kind !== "pass") throw new Error("Призрак больше не использует способность.");
-  if (actor.alive && action.kind === "pass") {
+  if (actor.alive && action.kind === "pass" && actor.roleId !== "resident") {
     throw new Error("Живой игрок должен выполнить свою ночную способность.");
   }
 
