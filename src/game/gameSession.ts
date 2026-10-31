@@ -68,7 +68,9 @@ export function startMansionSession(names: string[], clueDeck: EvidenceCard[]): 
 
 export function activeDayPlayer(session: MansionSession): MansionPlayer | null {
   if (session.phase !== "day-actions") return null;
-  return session.players.find((player) => player.alive && session.dayState.actionsUsed.filter((id) => id === player.id).length < ACTIONS_PER_PLAYER_PER_DAY) ?? null;
+  const living = session.players.filter((player) => player.alive);
+  const minimumActions = Math.min(...living.map((player) => session.dayState.actionsUsed.filter((id) => id === player.id).length));
+  return living.find((player) => session.dayState.actionsUsed.filter((id) => id === player.id).length === minimumActions && minimumActions < ACTIONS_PER_PLAYER_PER_DAY) ?? null;
 }
 
 export function activeNightPlayer(session: MansionSession): MansionPlayer | null {
