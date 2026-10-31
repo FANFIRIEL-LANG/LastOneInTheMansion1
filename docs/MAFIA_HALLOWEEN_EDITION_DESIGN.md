@@ -130,6 +130,23 @@ Private:
 - Speech must be cancellable on app backgrounding, route changes, or user mute.
 - If premium natural voice requires a cloud service, do not make it mandatory for offline play; pre-render core lines and use optional downloadable packs.
 
+## Narrator voice implementation decision
+
+The browser/iOS system speech synthesis is not an acceptable final narrator. It is disabled by default during the redesign, and the role-reveal call has been removed so role names, descriptions, objectives, and faction data are never spoken.
+
+Preferred production workflow:
+- Generate the fixed public narrator lines with ElevenLabs Eleven v3 for expressive dramatic delivery, or Multilingual v2 for stable longer narration. Russian is supported; paid plans are required for commercial use of generated output.
+- Audition at least three distinct narrator voices before choosing one: low, restrained male storyteller; warm but ominous female storyteller; and neutral cinematic narrator.
+- Render each line once to MP3, edit breaths/pauses, normalize loudness, and bundle the clips in the app. No runtime TTS API call and no API key in the client.
+- Use short reusable public lines for variable game events. Never interpolate player names, role names, secret objectives, targets, private clues, or investigative results into narration.
+- Keep captions available and allow all narration to be muted.
+- Google Cloud Chirp 3 HD is a secondary option: it has Russian voices and an EU endpoint; published pricing currently includes 1 million characters free, then $30 per million characters. Compare actual Russian voice samples before committing.
+
+References checked on 2026-10-31:
+- ElevenLabs documents expressive Eleven v3, stable Multilingual v2, Russian support, and commercial-use terms: https://elevenlabs.io/docs/overview/capabilities/text-to-speech
+- Google lists Russian Chirp 3 HD voices: https://docs.cloud.google.com/text-to-speech/docs/list-voices-and-types
+- Google TTS pricing: https://cloud.google.com/text-to-speech/pricing
+
 ## UX direction
 
 - Home: title, player count range, play, rules, audio settings.
