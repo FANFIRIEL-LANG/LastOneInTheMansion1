@@ -85,6 +85,19 @@ describe("private night resolution", () => {
     expect(result.attackedPlayerId).toBe("p4");
   });
 
+  it("applies the public day protection during the following night", () => {
+    const players = playersFor(["cultist", "detective", "doctor", "resident"]);
+    const actions: NightAction[] = [
+      { actorId: "p1", kind: "cult-select", targetId: "p4" },
+      { actorId: "p2", kind: "investigate", targetId: "p1" },
+      { actorId: "p3", kind: "protect", targetId: "p3" },
+      { actorId: "p4", kind: "pass" }
+    ];
+    const result = resolveNight(players, actions, 0, "p4");
+    expect(result.attackBlocked).toBe(true);
+    expect(result.players[3].wounds).toBe(0);
+  });
+
   it("turns a player into a ghost after two wounds and grants one final vote", () => {
     const players = playersFor(["cultist", "detective", "doctor", "resident"]);
     players[3].wounds = 1;
