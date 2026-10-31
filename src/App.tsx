@@ -84,7 +84,7 @@ export default function App() {
   }
 
   function confirmRoleAndPass() {
-    if (!currentPlayer) return;
+    if (!currentPlayer || transfer.stage !== "secret") return;
     setPlayers((all) => all.map((player, index) => index === transfer.playerIndex ? { ...player, revealed: true } : player));
     setShowRoleDetails(false);
     window.speechSynthesis?.cancel();
@@ -211,7 +211,7 @@ export default function App() {
 
       {screen === "round" && <section className="panel narrative screen-enter">
         <div className="round-counter">СОБЫТИЕ {roundIndex + 1} ИЗ {ROUNDS.length} <span>·</span> НОЧЬ НЕ КОНЧАЕТСЯ</div>
-        <div className="section-mark"><Sparkles size={23}/></div><p className="eyebrow">СЛУЧАЙНОЕ СОБЫТИЕ</p><h2>{round.title}</h2>
+        <div className="section-mark"><Sparkles size={23}/></div><p className="eyebrow">СОБЫТИЕ ОСОБНЯКА</p><h2>{round.title}</h2>
         <p className="round-prompt">{round.prompt}</p>
         <div className="choice-list">{round.choices.map((choice, index) => <div className="choice" key={choice}><span>{index + 1}</span>{choice}</div>)}</div>
         <div className="host-line"><AudioLines size={17}/><span>Ведущий озвучит событие. Обсудите решение вслух.</span></div>
