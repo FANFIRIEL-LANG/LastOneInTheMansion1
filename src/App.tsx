@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, AudioLines, Check, ChevronRight, DoorOpen, Eye, Ghost, Moon, Shield, Skull, Sparkles, Volume2, VolumeX } from "lucide-react";
+import { ArrowLeft, AudioLines, Check, ChevronRight, DoorOpen, Eye, EyeOff, Ghost, Moon, Shield, Skull, Sparkles, Volume2, VolumeX } from "lucide-react";
 import {
   activeDayPlayer,
   activeNightPlayer,
