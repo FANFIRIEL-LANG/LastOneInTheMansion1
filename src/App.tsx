@@ -212,6 +212,7 @@ export default function App() {
         <p className="muted">Передавайте телефон по кругу. Каждый выбирает подозреваемого, не показывая свой выбор остальным.</p>
         {players[voterIndex] && <div className="vote-row"><strong>{players[voterIndex].name}</strong><select key={players[voterIndex].id} defaultValue="" onChange={(event) => submitVote(players[voterIndex].id, event.target.value)} aria-label={`Голос игрока ${players[voterIndex].name}`}><option value="" disabled>Выбрать подозреваемого</option>{players.filter((candidate) => candidate.id !== players[voterIndex].id).map((candidate) => <option value={candidate.id} key={candidate.id}>{candidate.name}</option>)}</select></div>}
         {voterIndex > 0 && <p className="microcopy">Голоса приняты: {voterIndex}/{players.length}. Передайте телефон следующему игроку.</p>}
+        <p className="microcopy">Голоса приняты: {Object.keys(votes).length}/{players.length}. Передайте телефон следующему игроку.</p>
       </section>}
 
       {screen === "ending" && <section className="panel narrative screen-enter">
