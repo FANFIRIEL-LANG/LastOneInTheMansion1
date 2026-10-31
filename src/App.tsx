@@ -195,7 +195,7 @@ export default function App() {
       setError("");
       if (next.phase === "trial") playNarratorClip("narrator_trial", speechEnabled);
       else if (next.phase === "ending") playNarratorClip(next.winner === "guests" ? "narrator_guests_win" : "narrator_cult_win", speechEnabled);
-      else if (next.phase === "day-actions") playNarratorSequence(["narrator_dawn", "narrator_day_start", "narrator_day_actions"], speechEnabled);
+      else if (next.phase === "day-actions") playNarratorSequence(["narrator_day_start", "narrator_day_actions"], speechEnabled);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Голоса события не приняты.");
     }
@@ -367,7 +367,7 @@ export default function App() {
         <div className="round-counter">ДЕНЬ {session.day} <span>·</span> {session.phase === "day-actions" ? "ПУБЛИЧНЫЕ ДЕЙСТВИЯ" : session.phase === "event" ? "СОБЫТИЕ" : session.phase === "trial" ? "ТАЙНОЕ ГОЛОСОВАНИЕ" : session.phase === "night" ? "НОЧЬ" : session.phase === "night-results" ? "ЛИЧНЫЕ РЕЗУЛЬТАТЫ" : "ИТОГ"}</div>
         <div className="section-mark"><Sparkles size={23}/></div>
         <p className="eyebrow">ОСОБНЯК · РИТУАЛ {session.ritualProgress}/5</p>
-        <div className="player-status">{players.map((player) => <span className={player.alive ? "status-alive" : "status-ghost"} key={player.id}>{player.name}{player.alive ? "" : " · призрак"}</span>)}</div>
+        <div className="player-status">{players.map((player) => <span className={player.alive ? "status-alive" : "status-ghost"} key={player.id}>{player.name}{player.alive ? (player.wounds > 0 ? ` · рана ${player.wounds}/2` : "") : " · призрак"}</span>)}</div>
         {session.lastPublicMessage && <p className="round-prompt">{session.lastPublicMessage}</p>}
       </section>
 
