@@ -31,9 +31,11 @@ describe("public day actions", () => {
     expect(shared.state.privateEvidence.p1).toEqual([]);
   });
 
-  it("prevents a player from taking more than one public action per day", () => {
-    const searched = resolvePublicAction(players, createDayState(clues), "p1", { type: "search-room", room: "library" });
-    expect(() => resolvePublicAction(players, searched.state, "p1", { type: "accuse", targetId: "p2" })).toThrow();
+  it("allows two public actions per player and rejects a third", () => {
+    const first = resolvePublicAction(players, createDayState(clues), "p1", { type: "search-room", room: "library" });
+    const second = resolvePublicAction(players, first.state, "p1", { type: "interrogate", targetId: "p2", question: "Где ты был?" });
+    expect(second.state.actionsUsed.filter((id) => id === "p1")).toHaveLength(2);
+    expect(() => resolvePublicAction(players, second.state, "p1", { type: "accuse", targetId: "p2" })).toThrow();
   });
 
   it("allows a public interrogation while making clear the target may lie", () => {
